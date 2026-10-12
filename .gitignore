@@ -1,0 +1,45 @@
+# node_modules/
+# dist/
+# .preview/
+# backend/uploads/
+# .env
+# !.env.example
+# __pycache__/
+# crm-source.zip
+# project-download.zip
+Dependencies and build output
+
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.preview/
+
+Environment variables and secrets
+
+.env
+.env.*
+*/.env
+/.env.
+!.env.example
+!/.env.example
+
+User uploads and local data
+
+backend/uploads/
+pycache/
+
+Local archives
+
+crm-source.zip
+project-download.zip
+
+# Private test credentials
+memory/test_credentials.md
+
+# Local development tool metadata
+.emergent/
+
+# Generated test reports
+test_reports/
+test_result.md
