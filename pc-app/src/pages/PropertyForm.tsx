@@ -8,7 +8,7 @@ import { AGES, CATEGORIES, COMMERCIAL_CATS, dims, FACINGS, FURNISHING, human, in
 import { Button, Card, Chips, Field, Input, KV, Select, Textarea, Skeleton } from '../components/ui';
 import { LocalitySelect } from '../components/domain';
 
-const STEPS = ['Category', 'Subtype', 'Details', 'Photos', 'Other Features', 'Review'];
+const STEPS = ['Property Details', 'Title, Photos & Other Information', 'Review & Save'];
 const DEFAULT_AMENITIES = ['Swimming Pool', 'Gym', 'Clubhouse', 'Security', 'Power Backup', 'Parking', 'Lift', "Children's Play Area", 'Garden', 'CCTV'];
 const num = (v: any) => (v === '' || v == null ? null : Number(v));
 type Local = { file: File; url: string };
@@ -76,13 +76,20 @@ export default function PropertyForm() {
 
   const validate = (s: number) => {
     const e: Record<string, string> = {};
-    if (s === 0 && !f.category) e.category = 'Choose a category';
-    if (s === 1) { if (!f.subtype) e.subtype = 'Choose a subtype'; if (f.category === 'COMMERCIAL' && !f.subCategory) e.subCategory = 'Choose Full or Semi Commercial'; }
-    if (s === 2 && (!f.location || f.location.length < 2)) e.location = 'Location is required';
+    if (s === 0) {
+      if (!f.category) e.category = 'Choose a category';
+      if (!f.subtype) e.subtype = 'Choose a subtype';
+      if (f.category === 'COMMERCIAL' && !f.subCategory) e.subCategory = 'Choose Full or Semi Commercial';
+      if (!f.location || f.location.length < 2) e.location = 'Location is required';
+    }
     setErrors(e); return !Object.keys(e).length;
   };
   const next = () => validate(step) && setStep(step + 1);
-  const STEP_OF: Record<string, number> = { category: 0, subtype: 1, subCategory: 1, location: 2, floor: 2, dimLength: 2, dimWidth: 2, dimUnit: 2, area: 2 };
+  const STEP_OF: Record<string, number> = {
+    category: 0, subtype: 0, subCategory: 0, location: 0, locality: 0, facing: 0, bhk: 0, bathrooms: 0,
+    balcony: 0, parking: 0, floor: 0, totalFloors: 0, area: 0, builtUpArea: 0, carpetArea: 0, plotArea: 0,
+    dimLength: 0, dimWidth: 0, dimUnit: 0, amenities: 0, khata: 0, title: 1, otherFeatures: 1,
+  };
 
   const addFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -98,7 +105,7 @@ export default function PropertyForm() {
 
   const save = async () => {
     if (busy) return;
-    for (let s = 0; s < 5; s++) if (!validate(s)) return setStep(s);
+    for (let s = 0; s < STEPS.length - 1; s++) if (!validate(s)) return setStep(s);
     setBusy(true);
     const body = {
       ...f, bhk: num(f.bhk), bathrooms: num(f.bathrooms), balcony: num(f.balcony), floor: num(f.floor), totalFloors: num(f.totalFloors), area: num(f.area), builtUpArea: num(f.builtUpArea), carpetArea: num(f.carpetArea), plotArea: num(f.plotArea), dimLength: num(f.dimLength), dimWidth: num(f.dimWidth),
@@ -133,7 +140,7 @@ export default function PropertyForm() {
       } else nav(`/properties/${saved.id}`, { replace: true });
     } catch (e) {
       const fe = (e as ApiError).fieldErrors || {}; setErrors(fe);
-      const first = Object.keys(fe)[0]; if (first) setStep(STEP_OF[first.split('.')[0]] ?? (first.includes('.') ? 3 : 2));
+      const first = Object.keys(fe)[0]; if (first) setStep(STEP_OF[first.split('.')[0]] ?? 0);
       toast.error((e as Error).message);
     } finally { setBusy(false); setProgress(null); }
   };
@@ -147,12 +154,10 @@ export default function PropertyForm() {
         <div className="mt-4 flex gap-1">{STEPS.map((s, i) => <button key={s} onClick={() => i < step && setStep(i)} className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-navy' : 'bg-slate-200'}`} aria-label={s} />)}</div>
         <p className="mt-2 text-xs font-bold uppercase tracking-wider text-slate-500">Step {step + 1} of {STEPS.length} · {STEPS[step]}</p></div>
       <Card className="space-y-5 p-5">
-        {step === 0 && <Field label="Property Category" required error={errors.category}><Chips options={CATEGORIES} value={f.category} onChange={(v) => setF({ ...f, category: v, subtype: '', subCategory: '' })} label={human} testid="property-category" /></Field>}
-        {step === 1 && <>
+        {step === 0 && <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Property Category" required error={errors.category} className="sm:col-span-2"><Chips options={CATEGORIES} value={f.category} onChange={(v) => setF({ ...f, category: v, subtype: '', subCategory: '' })} label={human} testid="property-category" /></Field>
           {f.category === 'COMMERCIAL' && <Field label="Commercial Type" required error={errors.subCategory}><Chips options={COMMERCIAL_CATS} value={f.subCategory} onChange={(v) => set('subCategory', v)} testid="property-subcategory" /></Field>}
           <Field label="Property Subtype" required error={errors.subtype}><Chips options={SUBTYPES[f.category] || []} value={f.subtype} onChange={(v) => set('subtype', v)} testid="property-subtype" /></Field>
-        </>}
-        {step === 2 && <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Location" required error={errors.location} className="sm:col-span-2"><LocalitySelect value={f.location} onChange={(v) => set('location', v)} testid="property-location-input" invalid={!!errors.location} /></Field>
           <Field label="Locality">{inp('locality', 'text', 'e.g. ITPL Main Road')}</Field>
           <Field label="Facing"><Select value={f.facing || ''} onChange={(e) => set('facing', e.target.value)} data-testid="property-facing-select"><option value="">Select</option>{FACINGS.map((x) => <option key={x}>{x}</option>)}</Select></Field>
@@ -168,13 +173,14 @@ export default function PropertyForm() {
             {f.category === 'LAND' && <Field label="Khata"><Select value={f.khata || ''} onChange={(e) => set('khata', e.target.value)} data-testid="property-khata-select"><option value="">Select</option>{['A Khata', 'B Khata', 'E Khata'].map((x) => <option key={x}>{x}</option>)}</Select></Field>}
           </>}
           <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3 sm:col-span-2">
-            <Field label="Length">{inp('dimLength', 'number', '40')}</Field><span className="pb-3 text-xl font-bold text-slate-400">×</span><Field label="Width">{inp('dimWidth', 'number', '60')}</Field>
+            <Field label="Length" hint="Optional">{inp('dimLength', 'number', '40')}</Field><span className="pb-3 text-xl font-bold text-slate-400">×</span><Field label="Width" hint="Optional">{inp('dimWidth', 'number', '60')}</Field>
           </div>
           {area && <p className="rounded-xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-600" data-testid="computed-area">{f.dimLength} × {f.dimWidth} {f.dimUnit === 'METERS' ? 'm' : 'ft'} = {area.toLocaleString('en-IN')} sqft</p>}
           <Field label="Unit" className="sm:col-span-2"><Chips options={['FEET', 'METERS']} value={f.dimUnit} onChange={(v) => set('dimUnit', v)} label={human} testid="property-dimunit" /></Field>
           {R && <Field label="Amenities" className="sm:col-span-2"><div className="flex flex-wrap gap-2">{amenities.map((a) => { const on = f.amenities.includes(a.name); return <button key={a.id} type="button" onClick={() => set('amenities', on ? f.amenities.filter((x: string) => x !== a.name) : [...f.amenities, a.name])} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${on ? 'border-navy bg-navy text-white' : 'border-slate-200'}`} data-testid={`amenity-${a.name}`}>{a.name}</button>; })}</div></Field>}
         </div>}
-        {step === 3 && <div className="space-y-4">
+        {step === 1 && <div className="space-y-4">
+          <Field label="Property Title">{inp('title', 'text', 'e.g. Sunlit 3 BHK near ITPL')}</Field>
           <div className="grid grid-cols-2 gap-3">
             <Button variant="secondary" onClick={() => camera.current?.click()} data-testid="photo-camera-btn"><Camera className="h-4 w-4" />Camera</Button>
             <Button variant="secondary" onClick={() => gallery.current?.click()} data-testid="photo-gallery-btn"><ImagePlus className="h-4 w-4" />Gallery / Files</Button>
@@ -191,17 +197,19 @@ export default function PropertyForm() {
                 <PBtn onClick={() => removePhoto(i)} t={`photo-delete-${i}`}><Trash2 className="h-3.5 w-3.5" /></PBtn>
               </div>
             </div>))}</div>
-        </div>}
-        {step === 4 && <div className="space-y-4">
-          <Field label="Title">{inp('title', 'text', 'e.g. Sunlit 3 BHK near ITPL')}</Field>
           <Field label="Other Features"><Textarea value={f.otherFeatures || ''} onChange={(e) => set('otherFeatures', e.target.value)} placeholder="Corner plot, near metro, vastu compliant…" data-testid="property-otherFeatures-input" /></Field>
         </div>}
-        {step === 5 && <div className="divide-y divide-slate-100" data-testid="property-review">
-          <RevRow title="Category" go={() => setStep(0)} v={human(f.category)} /><RevRow title="Subtype" go={() => setStep(1)} v={`${f.subCategory ? `${f.subCategory} · ` : ''}${f.subtype}`} />
-          <RevRow title="Details" go={() => setStep(2)} v={[f.location, f.locality, f.bhk && `${f.bhk} BHK`, f.facing && `${f.facing} facing`, f.furnishing].filter(Boolean).join(' · ')} />
-          <RevRow title="Dimensions" go={() => setStep(2)} v={`${dims(f)}${area ? ` · ${area.toLocaleString('en-IN')} sqft` : ''}`} />
-          {R && <RevRow title="Amenities" go={() => setStep(2)} v={f.amenities?.join(', ') || '—'} />}
-          <RevRow title="Photos" go={() => setStep(3)} v={`${allPhotos.length} photo(s)`} /><RevRow title="Other Features" go={() => setStep(4)} v={[f.title, f.otherFeatures].filter(Boolean).join(' · ') || '—'} />
+        {step === 2 && <div className="divide-y divide-slate-100" data-testid="property-review">
+          <RevRow title="Category" go={() => setStep(0)} v={human(f.category)} /><RevRow title="Subtype" go={() => setStep(0)} v={`${f.subCategory ? `${f.subCategory} · ` : ''}${f.subtype}`} />
+          <RevRow title="Location" go={() => setStep(0)} v={[f.location, f.locality].filter(Boolean).join(' · ')} />
+          <RevRow title="Property Details" go={() => setStep(0)} v={[f.bhk && `${f.bhk} BHK`, f.bathrooms && `${f.bathrooms} bathrooms`, f.balcony && `${f.balcony} balconies`, f.facing && `${f.facing} facing`, f.parking, f.floor != null && `Floor ${f.floor}`, f.totalFloors != null && `${f.totalFloors} total floors`, f.furnishing, f.propertyAge].filter(Boolean).join(' · ')} />
+          <RevRow title="Area" go={() => setStep(0)} v={[f.area && `${f.area} sqft`, f.builtUpArea && `${f.builtUpArea} sqft built-up`, f.carpetArea && `${f.carpetArea} sqft carpet`, f.plotArea && `${f.plotArea} sqft plot`, f.khata].filter(Boolean).join(' · ')} />
+          <RevRow title="Dimensions" go={() => setStep(0)} v={`${dims(f)}${area ? ` · ${area.toLocaleString('en-IN')} sqft` : ''}`} />
+          {R && <RevRow title="Amenities" go={() => setStep(0)} v={f.amenities?.join(', ') || '—'} />}
+          <RevRow title="Property Title" go={() => setStep(1)} v={f.title || '—'} />
+          <RevRow title="Photos" go={() => setStep(1)} v={`${allPhotos.length} photo(s)`} />
+          {allPhotos.length > 0 && <div className="grid grid-cols-3 gap-3 py-3 sm:grid-cols-4">{allPhotos.map((url, index) => <img key={url + index} src={url} alt={`Property photo ${index + 1}`} className="aspect-square rounded-xl object-cover" />)}</div>}
+          <RevRow title="Other Features" go={() => setStep(1)} v={f.otherFeatures || '—'} />
         </div>}
       </Card>
       <div className="flex gap-3">
