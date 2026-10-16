@@ -108,5 +108,5 @@ export default function Shell() {
 }
 
 export const Logo = () => (
-  <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy text-white"><Building2 className="h-4 w-4" /></div><span className="text-[17px] font-extrabold tracking-tight">Prop<span className="text-brand">Desk</span></span></div>
+  <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy text-white"><Building2 className="h-4 w-4" /></div><span className="text-[17px] font-extrabold tracking-tight">PC-<span className="text-brand">CRM</span></span></div>
 );
