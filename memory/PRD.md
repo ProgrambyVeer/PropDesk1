@@ -1,4 +1,4 @@
-# PRD — PropDesk (Property Consultant CRM + Super Admin)
+# PRD — PC-CRM (Property Consultant CRM + Super Admin)
 
 ## Original problem statement
 Build a complete, production-ready, exportable full-stack Property Consultant CRM platform: separate PC web app (phone OTP only, mobile-first) and separate Super Admin web app (email/password, RBAC, enterprise SaaS), one shared secure REST backend (/api/v1), one PostgreSQL DB, Prisma schema/migrations/seeds, multi-requirement clients with immutable server-generated REQ-000001 IDs and strict isolation, property wizard (Residential/Commercial/Land, Sale/Rent/Lease, dimensions, persisted photos), matching engine, client-property-requirement linking with conflict rules, deal pipeline + commission, follow-ups with reschedule-aware notifications, WhatsApp deep-link sharing + PC-to-PC view-only sharing with green SHARED badge, global search, bin/restore, activity/audit logs, analytics, locations/amenities, system settings, provider abstractions, CSV export, tests, deployment config, docs.

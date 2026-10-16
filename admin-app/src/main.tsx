@@ -28,7 +28,7 @@ function Layout() {
   return (
     <div className="min-h-screen bg-slate-100 pl-64">
       <aside className="fixed inset-y-0 left-0 flex w-64 flex-col bg-[#0B132B] text-slate-300">
-        <div className="flex h-16 items-center gap-2 border-b border-white/10 px-5"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-700 text-white"><Shield className="h-4 w-4" /></div><div><p className="text-sm font-extrabold text-white">PropDesk</p><p className="text-[10px] font-bold uppercase tracking-widest text-blue-300">Super Admin</p></div></div>
+        <div className="flex h-16 items-center gap-2 border-b border-white/10 px-5"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-700 text-white"><Shield className="h-4 w-4" /></div><div><p className="text-sm font-extrabold text-white">PC-CRM</p><p className="text-[10px] font-bold uppercase tracking-widest text-blue-300">Super Admin</p></div></div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">{NAV.map(([to, label, I]) => (
           <NavLink key={to} to={to} end={to === '/'} data-testid={`admin-nav-${label.toLowerCase().replace(/\s+/g, '-')}`} className={({ isActive }) => clsx('flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors', isActive ? 'bg-blue-700 text-white' : 'hover:bg-white/5 hover:text-white')}><I className="h-4 w-4" />{label}</NavLink>))}
           <button onClick={logout} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-semibold text-red-300 hover:bg-white/5" data-testid="admin-logout-btn"><LogOut className="h-4 w-4" />Logout</button></nav>
@@ -53,7 +53,7 @@ function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0B132B] p-6">
       <form onSubmit={submit} className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl" data-testid="admin-login-form">
-        <div className="mb-6 flex items-center gap-2"><Shield className="h-6 w-6 text-blue-700" /><p className="font-extrabold">PropDesk Super Admin</p></div>
+        <div className="mb-6 flex items-center gap-2"><Shield className="h-6 w-6 text-blue-700" /><p className="font-extrabold">PC-CRM Super Admin</p></div>
         <h1 className="text-2xl font-extrabold tracking-tight">Administrator sign in</h1><p className="mt-1 text-sm text-slate-500">Restricted access. All activity is audited.</p>
         <label className="mt-6 block text-xs font-bold text-slate-600">Email<In type="email" className="mt-1 w-full" value={email} onChange={(e) => setEmail(e.target.value)} data-testid="admin-email-input" required /></label>
         <label className="mt-4 block text-xs font-bold text-slate-600">Password<In type="password" className="mt-1 w-full" value={password} onChange={(e) => setPassword(e.target.value)} data-testid="admin-password-input" required /></label>

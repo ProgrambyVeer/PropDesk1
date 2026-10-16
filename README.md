@@ -1,4 +1,4 @@
-# PropDesk — Property Consultant CRM + Super Admin
+# PC-CRM — Property Consultant CRM + Super Admin
 
 | Folder | What | Stack | Dev port |
 |---|---|---|---|
