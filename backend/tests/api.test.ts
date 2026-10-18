@@ -1,10 +1,12 @@
 import 'dotenv/config';
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 process.env.NODE_ENV = 'test';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import bcrypt from 'bcryptjs';
+import { OAuth2Client } from 'google-auth-library';
 import { createApp } from '../src/app';
+import { config } from '../src/config';
 import { prisma } from '../src/lib/prisma';
 import { scoreMatch } from '../src/services/matching';
 import { runSchedulerTick } from '../src/services/notifications';
@@ -24,14 +26,73 @@ const PROP = { category: 'RESIDENTIAL', subtype: 'Apartment', location: 'Whitefi
 
 let TA = ''; let A: ReturnType<typeof as>; let B: ReturnType<typeof as>; let ADMIN: ReturnType<typeof as>;
 let clientA: any; let clientB: any; let reqs: any[] = []; let propA: any; let userB: any;
+const googleVerify = vi.spyOn(OAuth2Client.prototype, 'verifyIdToken');
+const googlePayload = (overrides: Record<string, unknown> = {}) => ({
+  iss: 'https://accounts.google.com', aud: 'google-test-client-id', exp: Math.floor(Date.now() / 1000) + 3600,
+  sub: 'google-subject-1', email: 'Google.User@Example.com', email_verified: true, name: 'Google User', ...overrides,
+});
+const googleTicket = (payload: Record<string, unknown>) => ({ getPayload: () => payload }) as any;
 
 beforeAll(async () => {
+  config.googleClientId = 'google-test-client-id';
   TA = (await pcLogin('9000000001')).token; A = as(TA);
   const b = await pcLogin('9000000002'); B = as(b.token); userB = b.user;
   await prisma.adminUser.create({ data: { email: 'root@test.local', name: 'Root', role: 'SUPER_ADMIN', passwordHash: await bcrypt.hash('RootPass123!', 4) } });
   await prisma.adminUser.create({ data: { email: 'ro@test.local', name: 'RO', role: 'READ_ONLY_ADMIN', passwordHash: await bcrypt.hash('RootPass123!', 4) } });
   const r = await api().post('/api/v1/admin/auth/login').send({ email: 'root@test.local', password: 'RootPass123!' }).expect(200);
   ADMIN = as(r.body.data.token);
+});
+
+describe('Google PC authentication', () => {
+  it('rejects invalid, expired, wrong-audience, wrong-issuer, and unverified credentials', async () => {
+    googleVerify.mockRejectedValueOnce(new Error('invalid signature'));
+    await api().post('/api/v1/auth/google').send({ credential: 'invalid' }).expect(401);
+    googleVerify.mockResolvedValueOnce(googleTicket(googlePayload({ exp: Math.floor(Date.now() / 1000) - 1 })));
+    await api().post('/api/v1/auth/google').send({ credential: 'expired' }).expect(401);
+    googleVerify.mockResolvedValueOnce(googleTicket(googlePayload({ aud: 'another-client' })));
+    await api().post('/api/v1/auth/google').send({ credential: 'wrong-audience' }).expect(401);
+    googleVerify.mockResolvedValueOnce(googleTicket(googlePayload({ iss: 'https://attacker.example' })));
+    await api().post('/api/v1/auth/google').send({ credential: 'wrong-issuer' }).expect(401);
+    googleVerify.mockResolvedValueOnce(googleTicket(googlePayload({ email_verified: false })));
+    await api().post('/api/v1/auth/google').send({ credential: 'unverified' }).expect(401);
+  });
+
+  it('creates a verified Google PC once, uses PC sessions, isolates records, and leaves admin auth unchanged', async () => {
+    googleVerify.mockResolvedValue(googleTicket(googlePayload()));
+    const signedIn = await api().post('/api/v1/auth/google').send({ credential: 'valid' }).expect(200);
+    const googleUser = signedIn.body.data.user;
+    expect(googleUser.email).toBe('google.user@example.com'); expect(googleUser.phone).toBeNull();
+    expect(googleUser.onboarded).toBe(false); expect(signedIn.body.data.showOnboarding).toBe(true);
+    const stored = await prisma.user.findUnique({ where: { id: googleUser.id } });
+    expect(stored?.googleSub).toBe('google-subject-1'); expect(stored?.phone).toBeNull();
+    const repeat = await api().post('/api/v1/auth/google').send({ credential: 'valid' }).expect(200);
+    expect(repeat.body.data.user.id).toBe(googleUser.id);
+    expect(await prisma.user.count({ where: { googleSub: 'google-subject-1' } })).toBe(1);
+    const googlePc = as(signedIn.body.data.token);
+    await googlePc.get('/api/v1/auth/me').expect(200);
+    await api().get('/api/v1/auth/me').expect(401);
+    const ownedClient = (await googlePc.post('/api/v1/clients', { name: 'Google Tenant Client', phone: '9845012381', location: 'Whitefield' }).expect(201)).body.data;
+    await B.get(`/api/v1/clients/${ownedClient.id}`).expect(403);
+    const adminMe = await ADMIN.get('/api/v1/admin/auth/me').expect(200);
+    expect(adminMe.body.data.role).toBe('SUPER_ADMIN');
+  });
+
+  it('does not link an existing phone account by email or replace its identity', async () => {
+    const phoneUser = await prisma.user.findUniqueOrThrow({ where: { phone: '9000000001' } });
+    await prisma.user.update({ where: { id: phoneUser.id }, data: { email: 'phone.account@example.com' } });
+    googleVerify.mockResolvedValue(googleTicket(googlePayload({ sub: 'unlinked-subject', email: 'Phone.Account@Example.com' })));
+    const response = await api().post('/api/v1/auth/google').send({ credential: 'same-email' }).expect(409);
+    expect(response.body.error.message).toContain('never automatically linked');
+    const unchanged = await prisma.user.findUniqueOrThrow({ where: { id: phoneUser.id } });
+    expect(unchanged.googleSub).toBeNull(); expect(unchanged.phone).toBe('9000000001');
+    expect(await prisma.user.findUnique({ where: { googleSub: 'unlinked-subject' } })).toBeNull();
+  });
+
+  it('rejects duplicate Google email identities rather than linking them', async () => {
+    googleVerify.mockResolvedValue(googleTicket(googlePayload({ sub: 'second-google-subject' })));
+    await api().post('/api/v1/auth/google').send({ credential: 'duplicate-email' }).expect(409);
+    expect(await prisma.user.count({ where: { email: 'google.user@example.com' } })).toBe(1);
+  });
 });
 
 describe('Mandatory requirement isolation test', () => {

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { toast } from 'sonner';
 import { get, post, token } from './api';
 
-export interface PcUser { id: string; pcCode: string; phone: string; name: string; email?: string | null; status: string; onboarded: boolean; profile?: any }
+export interface PcUser { id: string; pcCode: string; phone: string | null; name: string; email?: string | null; status: string; onboarded: boolean; profile?: any }
 interface Ctx { user: PcUser | null | false; setUser: (u: PcUser) => void; login: (t: string, u: PcUser) => void; logout: () => Promise<void>; refresh: () => Promise<void> }
 const AuthCtx = createContext<Ctx>(null as unknown as Ctx);
 

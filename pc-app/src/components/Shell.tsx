@@ -76,7 +76,7 @@ export default function Shell() {
               <Bell className="h-5 w-5" />{unread > 0 && <span className="absolute right-1 top-1 min-w-[18px] rounded-full bg-red-500 px-1 text-[10px] font-bold leading-[18px] text-white" data-testid="unread-count">{unread}</span>}
             </button>
             <button onClick={() => setMenu(!menu)} data-testid="profile-avatar-btn" className="ml-1 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-navy text-xs font-bold text-white ring-2 ring-white shadow">
-              {user.profile?.photoUrl ? <img src={fileUrl(user.profile.photoUrl)} alt="" className="h-full w-full object-cover" /> : initials(user.name || user.phone)}
+              {user.profile?.photoUrl ? <img src={fileUrl(user.profile.photoUrl)} alt="" className="h-full w-full object-cover" /> : initials(user.name || user.email || user.phone || 'PC')}
             </button>
           </div>
         </div>
@@ -84,7 +84,7 @@ export default function Shell() {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMenu(false)} />
             <div className="absolute right-4 top-14 z-50 w-64 animate-up rounded-2xl border border-slate-200 bg-white p-2 shadow-lift" data-testid="profile-menu">
-              <div className="border-b border-slate-100 px-3 pb-3 pt-2"><p className="font-bold">{user.name || 'Your name'}</p><p className="text-xs text-slate-500">+91 {user.phone} · {user.pcCode}</p></div>
+              <div className="border-b border-slate-100 px-3 pb-3 pt-2"><p className="font-bold">{user.name || 'Your name'}</p><p className="text-xs text-slate-500">{user.phone ? `+91 ${user.phone}` : user.email} · {user.pcCode}</p></div>
               {MENU.map((m) => (
                 <button key={m.to} onClick={() => nav(m.to)} data-testid={`menu-${m.label.toLowerCase().replace(/\s+/g, '-')}`} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"><m.icon className="h-4 w-4 text-slate-400" />{m.label}</button>
               ))}
@@ -108,5 +108,7 @@ export default function Shell() {
 }
 
 export const Logo = () => (
-  <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy text-white"><Building2 className="h-4 w-4" /></div><span className="text-[17px] font-extrabold tracking-tight">PC-<span className="text-brand">CRM</span></span></div>
+  <div className="flex w-44 max-w-full min-w-0 items-center">
+    <img src={`${import.meta.env.BASE_URL}logo.jpg`} alt="EstateOS Professional" className="block h-auto w-full max-w-full rounded-md bg-white object-contain" />
+  </div>
 );

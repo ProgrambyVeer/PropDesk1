@@ -10,7 +10,7 @@ import { canViewProperty, loadOwned } from '../lib/scope';
 import { logActivity } from '../lib/activity';
 import { getSetting } from '../lib/settings';
 import { issueSession, pcAuth } from '../middleware/auth';
-import { otpLimiter } from '../middleware/security';
+import { googleLoginLimiter, otpLimiter } from '../middleware/security';
 import { otpProvider } from '../providers/otp';
 import { ALLOWED_IMAGE_TYPES, isValidImage, storage } from '../providers/storage';
 import * as R from '../services/records';
@@ -20,6 +20,7 @@ import { moveToBin, purgeFromBin, restoreFromBin } from '../services/bin';
 import { clientAnalytics, computeAnalytics, propertyAnalytics } from '../services/analytics';
 import { globalSearch } from '../services/search';
 import { optStr } from '../services/validation';
+import { verifyGoogleCredential } from '../services/google-auth';
 
 export const pc = Router();
 const upload = multer({
@@ -30,8 +31,38 @@ const me = (req: any) => req.actor.userId as string;
 const hashOtp = (phone: string, code: string) => crypto.createHmac('sha256', config.jwtSecret).update(`${phone}:${code}`).digest('hex');
 const userView = (u: any) => ({ id: u.id, pcCode: u.pcCode, phone: u.phone, name: u.name, email: u.email, status: u.status, onboarded: u.onboarded, lastLoginAt: u.lastLoginAt, createdAt: u.createdAt, profile: u.profile });
 
-/* ================= AUTH (phone + OTP only) ================= */
+/* ================= AUTH ================= */
 const phoneBody = z.object({ phone: z.string().transform(normalizePhone).refine(isIndianMobile, 'Enter a valid 10-digit Indian mobile number') });
+
+pc.post('/auth/google', googleLoginLimiter, async (req, res) => {
+  const { credential } = parse(z.object({ credential: z.string().min(1).max(8192) }), req.body);
+  const identity = await verifyGoogleCredential(credential);
+  let user = await prisma.user.findUnique({ where: { googleSub: identity.sub }, include: { profile: true } });
+  let isNew = false;
+  if (!user) {
+    const emailOwner = await prisma.user.findUnique({ where: { email: identity.email } });
+    if (emailOwner) throw conflict('This Google email already belongs to an existing PC account. Contact support to migrate it; accounts are never automatically linked.');
+    try {
+      user = await prisma.user.create({
+        data: {
+          phone: null, email: identity.email, googleSub: identity.sub, name: identity.name,
+          pcCode: await nextCode('PC'), profile: { create: { whatsappNumber: null } },
+        },
+        include: { profile: true },
+      });
+      isNew = true;
+    } catch (error) {
+      if ((error as any)?.code !== 'P2002') throw error;
+      user = await prisma.user.findUnique({ where: { googleSub: identity.sub }, include: { profile: true } });
+      if (!user) throw conflict('This Google email already belongs to another PC account. Contact support; accounts are never automatically linked.');
+    }
+  }
+  if (user.status !== 'ACTIVE') throw new AppError(403, `ACCOUNT_${user.status}`, user.status === 'SUSPENDED' ? 'Your account has been suspended. Please contact support.' : 'Your account has been deactivated.');
+  const previousLogin = user.lastLoginAt;
+  user = await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() }, include: { profile: true } });
+  const { token, expiresAt } = await issueSession('PC', user.id, req);
+  ok(res, { token, expiresAt, user: userView(user), isNewUser: isNew, showOnboarding: !user.onboarded, previousLogin });
+});
 
 pc.post('/auth/send-otp', otpLimiter, async (req, res) => {
   const { phone } = parse(phoneBody, req.body);

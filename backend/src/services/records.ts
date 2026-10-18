@@ -255,7 +255,7 @@ export async function updateProperty(actor: Actor, id: string, body: any) {
   return updated;
 }
 
-export function propertySummary(p: any, sender?: { name: string; phone: string; profile?: { companyName?: string | null } | null }) {
+export function propertySummary(p: any, sender?: { name: string; phone: string | null; profile?: { companyName?: string | null } | null }) {
   const tx = (p.transactions || []).map((t: any) => `${t.kind === 'SALE' ? 'Sale' : t.kind === 'RENT' ? 'Rent' : 'Lease'}: ${inr(txPrice(t))}${t.kind !== 'SALE' && t.depositAmount ? ` (Deposit ${inr(t.depositAmount)})` : ''}`).join(' | ');
   const dims = p.dimLength && p.dimWidth ? `${p.dimLength} × ${p.dimWidth} ${p.dimUnit === 'METERS' ? 'm' : 'ft'}` : '';
   return [
@@ -264,7 +264,7 @@ export function propertySummary(p: any, sender?: { name: string; phone: string; 
     tx,
     [p.area ? `Area: ${Math.round(p.area).toLocaleString('en-IN')} sqft` : '', dims ? `Dimensions: ${dims}` : ''].filter(Boolean).join(' | '),
     p.facing ? `Facing: ${p.facing}` : '',
-    sender ? `Shared by ${sender.name}${sender.profile?.companyName ? ` (${sender.profile.companyName})` : ''} · +91 ${sender.phone}` : '',
+    sender ? `Shared by ${sender.name}${sender.profile?.companyName ? ` (${sender.profile.companyName})` : ''}${sender.phone ? ` · +91 ${sender.phone}` : ''}` : '',
   ].filter(Boolean).join('\n');
 }
 

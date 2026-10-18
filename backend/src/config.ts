@@ -14,6 +14,7 @@ export const config = {
   port,
   jwtSecret: required('JWT_SECRET'),
   adminJwtSecret: required('ADMIN_JWT_SECRET'),
+  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   pcSessionDays: Number(process.env.PC_SESSION_DAYS || 30),
   adminSessionHours: Number(process.env.ADMIN_SESSION_HOURS || 8),
   corsOrigins: (process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
