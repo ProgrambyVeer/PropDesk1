@@ -7,6 +7,7 @@ import { useAuth } from '../lib/auth';
 import { AGES, CATEGORIES, COMMERCIAL_CATS, dims, FACINGS, FURNISHING, human, inr, SUBTYPES } from '../lib/format';
 import { Button, Card, Chips, Field, Input, KV, Select, Textarea, Skeleton } from '../components/ui';
 import { LocalitySelect } from '../components/domain';
+import { LocationPicker } from '../components/maps';
 
 const STEPS = ['Property Details', 'Title, Photos & Other Information', 'Review & Save'];
 const DEFAULT_AMENITIES = ['Swimming Pool', 'Gym', 'Clubhouse', 'Security', 'Power Backup', 'Parking', 'Lift', "Children's Play Area", 'Garden', 'CCTV'];
@@ -160,6 +161,7 @@ export default function PropertyForm() {
           <Field label="Property Subtype" required error={errors.subtype}><Chips options={SUBTYPES[f.category] || []} value={f.subtype} onChange={(v) => set('subtype', v)} testid="property-subtype" /></Field>
           <Field label="Location" required error={errors.location} className="sm:col-span-2"><LocalitySelect value={f.location} onChange={(v) => set('location', v)} testid="property-location-input" invalid={!!errors.location} /></Field>
           <Field label="Locality">{inp('locality', 'text', 'e.g. ITPL Main Road')}</Field>
+          <Field label="Pin Exact Location" hint="Optional. Shown on the Properties map." error={errors.latitude} className="sm:col-span-2"><LocationPicker latitude={f.latitude ?? null} longitude={f.longitude ?? null} onChange={(latitude, longitude) => setF((x: any) => ({ ...x, latitude, longitude }))} /></Field>
           <Field label="Facing"><Select value={f.facing || ''} onChange={(e) => set('facing', e.target.value)} data-testid="property-facing-select"><option value="">Select</option>{FACINGS.map((x) => <option key={x}>{x}</option>)}</Select></Field>
           {R ? <>
             <Field label="BHK">{inp('bhk', 'number')}</Field><Field label="Bathrooms">{inp('bathrooms', 'number')}</Field><Field label="Balcony">{inp('balcony', 'number')}</Field>

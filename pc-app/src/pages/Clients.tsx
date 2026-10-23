@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FilePenLine, Flame, Plus } from 'lucide-react';
+import { FilePenLine, Flame, Phone, Plus } from 'lucide-react';
 import { useDebounced, useFetch } from '../lib/hooks';
 import { human } from '../lib/format';
 import { Badge, Button, Card, Empty, ErrorState, Input, ListSkeleton, Mono, Sheet } from '../components/ui';
@@ -22,11 +22,14 @@ export default function Clients() {
       <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, phone, location" data-testid="clients-search-input" />
       {error ? <ErrorState message={error} retry={reload} /> : loading && !data ? <ListSkeleton /> : !data?.length ? <Empty title="No clients yet" action={<Button onClick={() => setForm(true)}>Add Client</Button>} /> :
         <Card className="divide-y divide-slate-100">{data.map((c) => (
-          <Link key={c.id} to={`/clients/${c.id}`} className="flex items-center gap-3 p-4 transition-colors hover:bg-slate-50" data-testid={`client-row-${c.code}`}>
+          <div key={c.id} className="flex items-center transition-colors hover:bg-slate-50">
+          <Link to={`/clients/${c.id}`} className="flex min-w-0 flex-1 items-center gap-3 p-4" data-testid={`client-row-${c.code}`}>
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 font-bold text-navy">{c.name[0]}</div>
             <div className="min-w-0 flex-1"><p className="flex items-center gap-1.5 truncate font-semibold">{c.name}{c.isHot && <Flame className="h-4 w-4 text-red-500" />}</p><p className="truncate text-xs text-slate-500">+91 {c.phone} · {c.location}</p><div className="mt-1 flex flex-wrap gap-1">{[...new Set((c.requirements || []).map((requirement: any) => requirement.type))].map((type: any) => <Badge key={type} tone={String(type).endsWith('_LOOKING') ? 'blue' : 'amber'}>{String(type).endsWith('_LOOKING') ? `Looking · ${human(String(type).replace('_LOOKING', ''))}` : `Offering · ${human(String(type).replace('_OFFERING', ''))}`}</Badge>)}</div></div>
             <div className="text-right text-xs text-slate-500"><p><b className="text-navy">{c._count.requirements}</b> req · <b className="text-navy">{c._count.links}</b> leads</p><Mono>{c.code}</Mono></div>
-          </Link>))}</Card>}
+          </Link>
+          <a href={`tel:+91${c.phone}`} className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100" aria-label={`Call ${c.name}`} title={`Call ${c.name}`} data-testid={`client-call-${c.code}`}><Phone className="h-4 w-4" /></a>
+          </div>))}</Card>}
       <ClientSheet open={form} onClose={() => setForm(false)} onSaved={(c) => { setForm(false); setCreated(c); reload(); }} />
       <Sheet open={!!created} onClose={() => setCreated(null)} title="Client created" testid="client-next-sheet">
         <p className="text-sm text-slate-500"><b className="text-navy">{created?.name}</b> was added.</p>

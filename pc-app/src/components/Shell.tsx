@@ -55,9 +55,9 @@ export default function Shell() {
   if (!user) return null;
   return (
     <div className="min-h-screen bg-slate-50 lg:pl-60">
-      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
-        <Logo />
-        <nav className="mt-8 space-y-1">
+      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-slate-200 bg-white px-4 pb-6 lg:flex">
+        <div className="flex h-28 shrink-0 items-center justify-center border-b border-slate-200"><Logo className="w-full max-w-[208px]" /></div>
+        <nav className="mt-6 space-y-1">
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.to === '/'} data-testid={`side-nav-${n.id}`} className={({ isActive }) => clsx('flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors', isActive ? 'bg-navy text-white' : 'text-slate-600 hover:bg-slate-100')}>
               <n.icon className="h-[18px] w-[18px]" />{n.label}
@@ -68,8 +68,8 @@ export default function Shell() {
       </aside>
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-          <div className="lg:hidden"><Logo /></div>
-          <div className="hidden text-sm font-medium text-slate-500 lg:block">{user.profile?.companyName || 'Property Consultant'}</div>
+          <div className="lg:hidden"><Logo shifted className="w-36 max-[360px]:w-28" /></div>
+          <div className="hidden text-sm font-medium text-slate-500 lg:block">{user.profile?.companyName}</div>
           <div className="flex items-center gap-1">
             <button onClick={() => nav('/search')} className="rounded-full p-2.5 text-slate-600 hover:bg-slate-100" data-testid="header-search-btn" aria-label="Search"><Search className="h-5 w-5" /></button>
             <button onClick={() => nav('/notifications')} className="relative rounded-full p-2.5 text-slate-600 hover:bg-slate-100" data-testid="header-notifications-btn" aria-label="Notifications">
@@ -107,8 +107,8 @@ export default function Shell() {
   );
 }
 
-export const Logo = () => (
-  <div className="flex w-44 max-w-full min-w-0 items-center">
+export const Logo = ({ shifted = false, className = 'w-44' }: { shifted?: boolean; className?: string }) => (
+  <div className={clsx('flex max-w-full min-w-0 items-center', className)} style={shifted ? { marginLeft: '-13%' } : undefined}>
     <img src={`${import.meta.env.BASE_URL}logo.jpg`} alt="EstateOS Professional" className="block h-auto w-full max-w-full rounded-md bg-white object-contain" />
   </div>
 );

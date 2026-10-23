@@ -211,7 +211,7 @@ async function notifyMatches(property: any) {
   for (const req of reqs) await notifyMatch(req, property, minScore);
 }
 
-async function notifyRequirementMatches(req: any) {
+export async function notifyRequirementMatches(req: any) {
   if (req.status !== 'ACTIVE' || req.deletedAt) return;
   const [minScore, requirement, properties] = await Promise.all([
     getSetting<number>('matching.notifyScore'),

@@ -69,7 +69,7 @@ export default function Login() {
   return (
     <div className="flex min-h-screen flex-col bg-white lg:flex-row">
       <div className="relative hidden flex-1 overflow-hidden bg-navy lg:block">
-        <img src="https://images.unsplash.com/photo-1600555179901-107bf80d25cf?w=1400&q=80" alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+        <img src="https://images.unsplash.com/photo-1600555179901-107bf80d25cf?w=1400&q=80" alt="" className="absolute inset-0 h-full w-full object-cover opacity-40 max-w-full w-full" />
         <div className="relative flex h-full flex-col justify-end p-14 text-white">
           <p className="text-sm font-semibold uppercase tracking-[.2em] text-blue-200">For property consultants</p>
           <h1 className="mt-3 max-w-md text-5xl font-extrabold leading-tight tracking-tight">Your properties. Your clients. One place.</h1>
@@ -78,7 +78,7 @@ export default function Login() {
       <div className="flex flex-1 items-center justify-center px-6 py-10">
         <div className="w-full max-w-sm animate-up">
           <Logo />
-          <h1 className="mt-10 text-3xl font-extrabold tracking-tight">Sign in to PropDesk</h1>
+          <h1 className="mt-10 text-3xl font-extrabold tracking-tight ">Explore</h1>
           <p className="mt-2 text-sm text-slate-500">Continue with your Google account.</p>
           <div className={`mt-8 min-h-11 w-full ${busy ? 'pointer-events-none opacity-60' : ''}`} ref={button} data-testid="login-google-btn-container" />
           {!clientId && <Button size="lg" className="mt-8 w-full" disabled data-testid="login-google-unconfigured-btn">Continue with Google</Button>}

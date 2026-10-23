@@ -547,3 +547,59 @@ describe('Tenant isolation & admin', () => {
     await api().get('/api/v1/health').expect(200);
   });
 });
+
+describe('Public requirement link & property pin', () => {
+  const reqBody = (key: string, n = 2) => ({
+    idempotencyKey: key, client: { name: 'Public Client', phone: '9877700001' },
+    requirements: Array.from({ length: n }, (_, i) => ({ type: 'BUY_LOOKING', category: 'RESIDENTIAL', subtype: 'Apartment', location: 'Whitefield', bhk: 2 + i, amount: 9000000 + i, dimLength: 30, dimWidth: 40 })),
+  });
+  const newLink = async (T: ReturnType<typeof as>) => (await T.post('/api/v1/requirement-requests').expect(201)).body.data.token as string;
+
+  let userA: any; let PB: ReturnType<typeof as>;
+  beforeAll(async () => { userA = (await A.get('/api/v1/auth/me').expect(200)).body.data; PB = as((await pcLogin(userB.phone)).token); });
+  it('requires PC auth to create a link and exposes only display info publicly', async () => {
+    await api().post('/api/v1/requirement-requests').expect(401);
+    const token = await newLink(A);
+    const d = (await api().get(`/api/v1/public/requirement-requests/${token}`).expect(200)).body.data;
+    expect(d.status).toBe('OPEN'); expect(Object.keys(d).sort()).toEqual(['agentName', 'companyName', 'status']);
+    await api().get('/api/v1/public/requirement-requests/' + 'x'.repeat(43)).expect(404);
+  });
+  it('creates one client and N distinct requirements owned by the link PC; replays and reuse are safe', async () => {
+    const token = await newLink(A);
+    const url = `/api/v1/public/requirement-requests/${token}`;
+    await api().post(url).send({ ...reqBody('k'.repeat(20)), requirements: [{ ...reqBody('x').requirements[0], amount: -5 }, reqBody('x').requirements[1]] }).expect(422);
+    expect(await prisma.client.count({ where: { phone: '+919877700001' } }) + await prisma.client.count({ where: { phone: '9877700001' } })).toBe(0);
+    await api().post(url).send({ ...reqBody('k'.repeat(20)), requirements: [{ ...reqBody('x').requirements[0], type: 'BUY_OFFERING' }] }).expect(422);
+    const [r1, r2] = await Promise.all([api().post(url).send(reqBody('k'.repeat(20), 3)), api().post(url).send(reqBody('k'.repeat(20), 3))]);
+    expect([r1.status, r2.status].sort()).toEqual([201, 201]);
+    expect(r1.body.data.requirements.map((r: any) => r.code).sort()).toEqual(r2.body.data.requirements.map((r: any) => r.code).sort());
+    const clients = await prisma.client.findMany({ where: { ownerId: userA.id, name: 'Public Client' } });
+    expect(clients).toHaveLength(1);
+    const reqRows = await prisma.requirement.findMany({ where: { clientId: clients[0].id } });
+    expect(reqRows).toHaveLength(3); expect(new Set(reqRows.map((r) => r.code)).size).toBe(3);
+    expect(reqRows.every((r) => r.ownerId === userA.id)).toBe(true);
+    await api().post(url).send(reqBody('z'.repeat(20))).expect(409);
+    expect((await api().get(url).expect(200)).body.data.status).toBe('USED');
+    expect(await prisma.requirement.count({ where: { clientId: clients[0].id } })).toBe(3);
+  });
+  it('reuses an existing client with the same phone and never touches another PC', async () => {
+    const token = await newLink(PB);
+    await api().post(`/api/v1/public/requirement-requests/${token}`).send({ ...reqBody('m'.repeat(20), 1), client: { name: 'Public Client', phone: '9877700001' }, ownerId: userA.id }).expect(422);
+    await api().post(`/api/v1/public/requirement-requests/${token}`).send(reqBody('m'.repeat(20), 1)).expect(201);
+    expect(await prisma.client.count({ where: { ownerId: userA.id, name: 'Public Client' } })).toBe(1);
+    expect(await prisma.client.count({ where: { ownerId: userB.id, name: 'Public Client' } })).toBe(1);
+  });
+  it('rejects expired links', async () => {
+    const token = await newLink(A);
+    await prisma.requirementRequest.updateMany({ data: { expiresAt: new Date(Date.now() - 1000) } });
+    await api().post(`/api/v1/public/requirement-requests/${token}`).send(reqBody('e'.repeat(20), 1)).expect(410);
+  });
+  it('persists property latitude/longitude and rejects a lone coordinate', async () => {
+    const p = (await A.post('/api/v1/properties', { ...PROP, latitude: 12.9698, longitude: 77.75 }).expect(201)).body.data;
+    expect((await A.get(`/api/v1/properties/${p.id}`).expect(200)).body.data).toMatchObject({ latitude: 12.9698, longitude: 77.75 });
+    await A.patch(`/api/v1/properties/${p.id}`, { latitude: 13.0, longitude: 77.6 }).expect(200);
+    expect((await A.get(`/api/v1/properties/${p.id}`).expect(200)).body.data).toMatchObject({ latitude: 13, longitude: 77.6 });
+    await A.post('/api/v1/properties', { ...PROP, latitude: 12.9 }).expect(422);
+    await A.post('/api/v1/properties', { ...PROP, latitude: 120, longitude: 77 }).expect(422);
+  });
+});

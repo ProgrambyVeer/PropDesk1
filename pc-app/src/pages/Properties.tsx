@@ -5,6 +5,7 @@ import { useDebounced, useFetch } from '../lib/hooks';
 import { AMOUNT_LABEL, CATEGORIES, date, human, inr, requirementLabel } from '../lib/format';
 import { Badge, Button, Card, Empty, ErrorState, Input, ListSkeleton, Select, Tabs } from '../components/ui';
 import { PropertyCard } from '../components/domain';
+import { PropertiesMap } from '../components/maps';
 
 const PRICE_STEPS = [0, 25000, 50000, 100000, 500000, 2500000, 5000000, 10000000, 20000000, 50000000, 100000000, 200000000, 500000000];
 
@@ -16,6 +17,7 @@ export default function Properties() {
   const [q, setQ] = useState(restored?.q || '');
   const [filters, setFilters] = useState<any>(restored?.filters || { category: '', kind: '', sort: 'createdAt', bhk: '', max: PRICE_STEPS.length - 1 });
   const [open, setOpen] = useState(!!restored?.open);
+  const [view, setView] = useState<'list' | 'map'>(restored?.view || 'list');
   const dq = useDebounced(q);
   const { data, meta, loading, error, reload } = useFetch<any[]>(scope === 'offers' ? null : '/properties', { scope, q: dq, category: filters.category, kind: filters.kind, sort: filters.sort, bhk: filters.bhk, maxPrice: filters.max < PRICE_STEPS.length - 1 ? PRICE_STEPS[filters.max] : '', pageSize: 50 });
   const offers = useFetch<any[]>(scope === 'offers' ? '/requirements' : null, { status: 'ACTIVE', pageSize: 100 });
@@ -38,6 +40,7 @@ export default function Properties() {
       <div className="flex items-end justify-between"><div><h1 className="text-3xl font-extrabold tracking-tight">Properties</h1><p className="text-sm text-slate-500">{scope === 'offers' ? `${clientOffers.length} client offering${clientOffers.length === 1 ? '' : 's'}` : `${meta?.total ?? '…'} listings`}</p></div>
         <div className="flex gap-2"><Button variant="secondary" onClick={() => nav('/drafts?kind=property')} data-testid="property-drafts-btn"><FilePenLine className="h-4 w-4" />Drafts</Button><Button onClick={() => nav('/properties/new')} data-testid="add-property-btn"><Plus className="h-4 w-4" />Add Property</Button></div></div>
       <Tabs tabs={[{ id: 'mine', label: 'My Active Properties' }, { id: 'inactive', label: 'Inactive Properties' }, { id: 'shared', label: 'Shared with me' }, { id: 'offers', label: 'Client Offerings' }]} value={scope} onChange={setScope} testid="properties-scope" />
+      {scope !== 'offers' && <Tabs tabs={[{ id: 'list', label: 'List View' }, { id: 'map', label: 'Map View' }]} value={view} onChange={setView} testid="properties-view" />}
       <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by ID, location, type" data-testid="properties-search-input" />
         <Button variant="secondary" onClick={() => setOpen(!open)} data-testid="properties-filter-btn"><SlidersHorizontal className="h-4 w-4" /></Button></div>
       {open && (
@@ -65,7 +68,8 @@ export default function Properties() {
             </Card>;
           })}</div>
         : error ? <ErrorState message={error} retry={reload} /> : loading && !data ? <ListSkeleton /> : !data?.length ? <Empty title={scope === 'shared' ? 'Nothing shared with you yet' : scope === 'inactive' ? 'No inactive properties' : 'No properties found'} action={scope === 'mine' && <Button onClick={() => nav('/properties/new')}>Add your first property</Button>} /> :
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{data.map((p) => <PropertyCard key={p.id} p={p} onChanged={reload} propertyListState={{ scope, q, filters, open }} />)}</div>}
+          view === 'map' ? <PropertiesMap properties={data} onOpen={(p) => nav(`/properties/${p.id}`, { state: { returnTo: location.pathname, propertyListState: { scope, q, filters, open, view } } })} /> :
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{data.map((p) => <PropertyCard key={p.id} p={p} onChanged={reload} propertyListState={{ scope, q, filters, open, view }} />)}</div>}
     </div>
   );
 }

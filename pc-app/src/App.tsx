@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useMatch } from 'react-router-dom';
 import { useAuth } from './lib/auth';
 import { Skeleton } from './components/ui';
 import Login from './pages/Login';
@@ -20,10 +20,14 @@ import { Activity, Bin, Help, Notifications } from './pages/Misc';
 import Analytics from './pages/Analytics';
 import Profile from './pages/Profile';
 import Drafts from './pages/Drafts';
+import PublicRequirement from './pages/PublicRequirement';
 
 export default function App() {
   const { user } = useAuth();
+  const publicRequirement = useMatch('/r/:token');
+  if (publicRequirement) return <Routes><Route path="/r/:token" element={<PublicRequirement />} /></Routes>;
   if (user === null) return <div className="mx-auto max-w-md space-y-3 p-6"><Skeleton className="h-10" /><Skeleton className="h-32" /><Skeleton className="h-32" /></div>;
+  if (!user && window.location.pathname === '/') { window.location.replace('/welcome.html'); return null; }
   if (!user) return <Routes><Route path="*" element={<Login />} /></Routes>;
   if (!user.onboarded) return <Onboarding />;
   return (

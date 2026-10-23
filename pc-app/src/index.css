@@ -10,3 +10,21 @@ html, body { font-family: 'Plus Jakarta Sans', sans-serif; color: #0F172A; -webk
 @keyframes sk { to { background-position: -200% 0; } }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 input[type='date'], input[type='datetime-local'] { min-height: 44px; }
+
+
+
+.michroma-regular {
+  font-family: "Michroma", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+.max-w-full {
+    max-width: 200%;
+}
+.w1-full {
+    width: 130%;
+}
+
+.logo-margin-left {
+    margin-left:-13%;
+}

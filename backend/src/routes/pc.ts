@@ -10,7 +10,7 @@ import { canViewProperty, loadOwned } from '../lib/scope';
 import { logActivity } from '../lib/activity';
 import { getSetting } from '../lib/settings';
 import { issueSession, pcAuth } from '../middleware/auth';
-import { googleLoginLimiter, otpLimiter } from '../middleware/security';
+import { googleLoginLimiter, otpLimiter, publicRequirementLimiter } from '../middleware/security';
 import { otpProvider } from '../providers/otp';
 import { ALLOWED_IMAGE_TYPES, isValidImage, storage } from '../providers/storage';
 import * as R from '../services/records';
@@ -21,6 +21,7 @@ import { clientAnalytics, computeAnalytics, propertyAnalytics } from '../service
 import { globalSearch } from '../services/search';
 import { optStr } from '../services/validation';
 import { verifyGoogleCredential } from '../services/google-auth';
+import { createRequirementRequest, describeRequirementRequest, submitRequirementRequest } from '../services/requirement-requests';
 
 export const pc = Router();
 const upload = multer({
@@ -98,8 +99,12 @@ pc.post('/auth/verify-otp', otpLimiter, async (req, res) => {
   ok(res, { token, expiresAt, user: userView(user), isNewUser: isNew, showOnboarding: !user.onboarded, previousLogin });
 });
 
+pc.get('/public/requirement-requests/:token', publicRequirementLimiter, async (req, res) => ok(res, await describeRequirementRequest(req.params.token)));
+pc.post('/public/requirement-requests/:token', publicRequirementLimiter, async (req, res) => ok(res, await submitRequirementRequest(req.params.token, req.body), undefined, 201));
+
 pc.use(pcAuth);
 
+pc.post('/requirement-requests', async (req, res) => ok(res, await createRequirementRequest(me(req)), undefined, 201));
 pc.post('/auth/logout', async (req, res) => {
   await prisma.session.update({ where: { id: req.sessionId! }, data: { revokedAt: new Date() } });
   ok(res, { loggedOut: true });

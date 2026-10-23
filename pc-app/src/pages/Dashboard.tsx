@@ -1,15 +1,18 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarClock, ChevronRight, Flame, MapPin, Plus, Search, Sparkles } from 'lucide-react';
+import { CalendarClock, ChevronRight, Flame, MapPin, Plus, Search, Send, Sparkles } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useFetch } from '../lib/hooks';
 import { fileUrl } from '../lib/api';
 import { human, inr, requirementLabel, time, dt, STAGE_TONE } from '../lib/format';
 import { Badge, Button, Card, Empty, ErrorState, ListSkeleton, Mono, Section } from '../components/ui';
 import { PropertyCard, Stat, Timeline } from '../components/domain';
+import { RequestRequirementSheet } from '../components/RequestRequirement';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const [requestOpen, setRequestOpen] = useState(false);
   const { data, loading, error, reload } = useFetch<any>('/dashboard');
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -26,17 +29,19 @@ export default function Dashboard() {
       {loading || !data ? <ListSkeleton n={4} /> : (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            <Stat label="Properties" value={data.stats.properties} testid="stat-properties" />
-            <Stat label="Clients" value={data.stats.clients} testid="stat-clients" />
-            <Stat label="Follow-ups Today" value={data.stats.followUpsToday} testid="stat-followups-today" />
-            <Stat label="Potential Deal Value" value={inr(data.stats.potentialDealValue)} testid="stat-deal-value" accent />
+            <Stat label="Properties" value={data.stats.properties} testid="stat-properties" to="/properties" />
+            <Stat label="Clients" value={data.stats.clients} testid="stat-clients" to="/clients" />
+            <Stat label="Follow-ups Today" value={data.stats.followUpsToday} testid="stat-followups-today" to="/follow-ups" />
+            <Stat label="Potential Deal Value" value={inr(data.stats.potentialDealValue)} testid="stat-deal-value" to="/deals" accent />
             <Stat label="Potential Commission" value={inr(data.stats.potentialCommission)} testid="stat-commission" accent />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => nav('/properties/new')} data-testid="quick-add-property-btn"><Plus className="h-4 w-4" />Property</Button>
             <Button variant="secondary" onClick={() => nav('/clients?new=1')} data-testid="quick-add-client-btn"><Plus className="h-4 w-4" />Client</Button>
             <Button variant="secondary" onClick={() => nav('/follow-ups?new=1')} data-testid="quick-add-followup-btn"><Plus className="h-4 w-4" />Follow-up</Button>
+            <Button variant="secondary" onClick={() => setRequestOpen(true)} data-testid="quick-request-requirement-btn"><Send className="h-4 w-4" />Request Requirement</Button>
           </div>
+          <RequestRequirementSheet open={requestOpen} onClose={() => setRequestOpen(false)} />
           <div className="grid gap-8 lg:grid-cols-2">
             <Section title="Today's Follow-ups" action={<Link to="/follow-ups" className="text-sm font-semibold text-brand">View all</Link>}>
               {data.todaysFollowUps.length ? <Card className="divide-y divide-slate-100">{data.todaysFollowUps.map((f: any) => (

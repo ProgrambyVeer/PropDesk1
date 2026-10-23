@@ -16,6 +16,7 @@ export const globalLimiter = limiter(60_000, 600);
 // Mock OTP in non-production: relaxed so local/E2E testing isn't blocked.
 export const otpLimiter = limiter(10 * 60_000, config.otpProvider === 'mock' && !config.isProd ? 200 : 10, (r) => `${r.ip}:${String(r.body?.phone || '')}`);
 export const googleLoginLimiter = limiter(15 * 60_000, 20);
+export const publicRequirementLimiter = limiter(15 * 60_000, 40);
 export const adminLoginLimiter = limiter(15 * 60_000, 20, (r) => `${r.ip}:${String(r.body?.email || '').toLowerCase()}`);
 
 export function notFoundHandler(_req: Request, res: Response) {

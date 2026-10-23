@@ -7,6 +7,7 @@ import { useFetch } from '../lib/hooks';
 import { date, dims, human, inr, requirementLabel, txLabel, STAGE_TONE } from '../lib/format';
 import { Badge, Button, Card, Empty, ErrorState, Field, KV, ListSkeleton, Mono, Section, Select, Sheet, Tabs } from '../components/ui';
 import { FollowUpSheet, LinkSheet, propertyShareLabel, SharedBadge, ShareSheet, Stat, Timeline } from '../components/domain';
+import { hasPin, OpenInGoogleMaps } from '../components/maps';
 
 export default function PropertyDetail({ commandCenter = false }: { commandCenter?: boolean }) {
   const { id } = useParams();
@@ -57,7 +58,7 @@ export default function PropertyDetail({ commandCenter = false }: { commandCente
       </div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>{commandCenter && <button onClick={back} className="mb-2 flex items-center gap-1 text-sm font-semibold text-slate-500" data-testid="property-command-back-btn"><ArrowLeft className="h-4 w-4" />Back</button>}<Mono>{p.code}</Mono><h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{commandCenter ? 'Property Command Center' : p.title || `${p.bhk ? `${p.bhk} BHK ` : ''}${p.subtype} in ${p.location}`}</h1>
-          <p className="mt-1 text-sm text-slate-500">{human(p.category)} · {p.subCategory ? `${p.subCategory} · ` : ''}{p.subtype} · {p.location}{p.locality ? `, ${p.locality}` : ''}</p>
+          <p className="mt-1 text-sm text-slate-500">{human(p.category)} · {p.subCategory ? `${p.subCategory} · ` : ''}{p.subtype} · {p.location}{p.locality ? `, ${p.locality}` : ''}{hasPin(p) && <> · <OpenInGoogleMaps latitude={p.latitude} longitude={p.longitude} /></>}</p>
           <div className="mt-3 flex flex-wrap gap-2">{p.transactions.map((t: any) => <Badge key={t.kind} tone="navy" className="text-xs normal-case">{txLabel(t)}</Badge>)}<Badge tone={p.status === 'ACTIVE' ? 'green' : 'slate'}>{human(p.status)}</Badge></div>
           {!owner && <p className="mt-3 text-sm font-semibold text-emerald-700" data-testid="view-only-note">Shared by {p.owner.name} · View only</p>}
         </div>

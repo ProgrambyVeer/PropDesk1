@@ -7,6 +7,7 @@ import { useAction, useDebounced, useFetch } from '../lib/hooks';
 import { ago, dims, human, inr, requirementLabel, toLocalInput, txLabel, FU_TYPES, STAGE_TONE } from '../lib/format';
 import { BANGALORE_LOCALITIES, type BangaloreLocality } from '../lib/bangaloreLocalities';
 import { Badge, Button, Card, Chips, Field, Input, Mono, Select, Sheet, Textarea } from './ui';
+import { ContactPickButton } from './ContactPicker';
 
 export function SharedBadge({ label = 'Shared' }: { label?: string }) {
   return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10.5px] font-extrabold text-white shadow-sm" data-testid="shared-indicator"><span className="h-1.5 w-1.5 rounded-full bg-white" />{label}</span>;
@@ -266,7 +267,7 @@ export function ClientSheet({ open, onClose, initial, onSaved }: { open: boolean
     <Sheet open={open} onClose={onClose} title={initial?.id ? 'Edit Client' : 'Add Client'} testid="client-sheet" footer={<><Button variant="secondary" onClick={onClose} className="flex-1">Cancel</Button><Button className="flex-1" onClick={submit} loading={busy} data-testid="client-save-btn">Save</Button></>}>
       <div className="space-y-4">
         <Field label="Name" required error={errors.name}><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Rahul Sharma" data-testid="client-name-input" invalid={!!errors.name} /></Field>
-        <Field label="Phone Number" required error={errors.phone}><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="numeric" placeholder="98765 43210" data-testid="client-phone-input" invalid={!!errors.phone} /></Field>
+        <Field label="Phone Number" required error={errors.phone}><div className="flex gap-2"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="numeric" placeholder="98765 43210" data-testid="client-phone-input" invalid={!!errors.phone} /><ContactPickButton onPick={(c) => setF((x: any) => ({ ...x, phone: c.phone || x.phone, name: x.name || c.name }))} /></div></Field>
         <Field label="Location" required error={errors.location}><LocalitySelect value={f.location} onChange={(v) => setF({ ...f, location: v })} testid="client-location-input" invalid={!!errors.location} /></Field>
         <Field label="Gmail / Email" error={errors.email}><Input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="name@gmail.com" data-testid="client-email-input" /></Field>
         <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={f.isHot} onChange={(e) => setF({ ...f, isHot: e.target.checked })} data-testid="client-hot-checkbox" className="h-4 w-4 accent-red-500" />Mark as hot client</label>
@@ -337,10 +338,13 @@ export function Timeline({ items, testid = 'timeline' }: { items?: any[]; testid
   );
 }
 
-export const Stat = ({ label, value, testid, accent }: { label: string; value: React.ReactNode; testid?: string; accent?: boolean }) => (
-  <div className={`rounded-2xl p-4 ${accent ? 'bg-navy text-white' : 'border border-slate-200/80 bg-white shadow-card'}`} data-testid={testid}>
-    <p className={`text-[11px] font-bold uppercase tracking-wider ${accent ? 'text-blue-200' : 'text-slate-500'}`}>{label}</p>
-    <p className="mt-1.5 text-2xl font-extrabold tracking-tight">{value}</p>
-  </div>
-);
+export const Stat = ({ label, value, testid, accent, to }: { label: string; value: React.ReactNode; testid?: string; accent?: boolean; to?: string }) => {
+  const card = (
+    <div className={`rounded-2xl p-4 ${accent ? 'bg-navy text-white' : 'border border-slate-200/80 bg-white shadow-card'} ${to ? 'transition-shadow hover:shadow-lift' : ''}`} data-testid={testid}>
+      <p className={`text-[11px] font-bold uppercase tracking-wider ${accent ? 'text-blue-200' : 'text-slate-500'}`}>{label}</p>
+      <p className="mt-1.5 text-2xl font-extrabold tracking-tight">{value}</p>
+    </div>
+  );
+  return to ? <Link to={to} className="block rounded-2xl" aria-label={`Open ${label}`}>{card}</Link> : card;
+};
 export { inr };

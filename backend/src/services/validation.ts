@@ -13,6 +13,7 @@ export const COMMERCIAL_CATEGORIES = ['Full Commercial', 'Semi Commercial'];
 export const COMMERCIAL_SUBTYPES = ['Shop', 'Store', 'Land', 'Storehouse'];
 export const LAND_SUBTYPES = ['Agricultural', 'Commercial', 'Residential', 'Empty Land', 'Farmhouse'];
 
+const coord = (max: number) => z.preprocess((v) => (empty(v) ? null : Number(v)), z.number().finite().min(-max).max(max).nullable()).optional();
 const dims = { dimLength: optNum, dimWidth: optNum, dimUnit: z.nativeEnum(DimensionUnit).optional() };
 const parseFacingValues = (value: unknown) => {
   if (Array.isArray(value)) return value.map((v: any) => String(v ?? '').trim()).filter(Boolean);
@@ -138,6 +139,7 @@ export const propertySchema = z.object({
   category: z.nativeEnum(PropertyCategory),
   subCategory: optStr, subtype: z.string().trim().min(1, 'Subtype is required'),
   location: z.string().trim().min(2, 'Location is required').max(120),
+  latitude: coord(90), longitude: coord(180),
   locality: optStr, address: optStr, facing: optStr, area: optNum, builtUpArea: optNum, carpetArea: optNum, plotArea: optNum,
   bhk: optInt, bathrooms: optInt, balcony: optInt, parking: optStr, floor: optInt, totalFloors: optInt, furnishing: optStr, propertyAge: optStr,
   amenities: z.array(z.string().max(60)).max(40).optional(), ...dims, khata: optStr, otherFeatures: optStr,
@@ -157,6 +159,7 @@ export function normalizeProperty(input: Omit<PropertyInput, 'transactions'>) {
   const allowed = new Set(PROP_FIELDS[input.category]);
   const out: any = {
     title: input.title ?? null, category: input.category, subtype: canonicalSubtype(input.category, input.subtype), location: input.location, address: input.address ?? null,
+    latitude: input.latitude ?? null, longitude: input.longitude ?? null,
     otherFeatures: input.otherFeatures ?? null, dimLength: input.dimLength ?? null, dimWidth: input.dimWidth ?? null, dimUnit: input.dimUnit ?? 'FEET',
   };
   for (const f of ALL_PROP_OPTIONAL) out[f] = allowed.has(f) ? ((input as any)[f] ?? (f === 'amenities' ? [] : null)) : (f === 'amenities' ? [] : null);
@@ -164,6 +167,7 @@ export function normalizeProperty(input: Omit<PropertyInput, 'transactions'>) {
   const errors: Record<string, string> = {};
   checkSubtype(input.category, out.subCategory, out.subtype, errors);
   if (out.floor != null && out.totalFloors != null && out.floor > out.totalFloors) errors.floor = 'Floor cannot exceed total floors';
+  if ((out.latitude == null) !== (out.longitude == null)) errors.latitude = 'Latitude and longitude must be set together';
   if (Object.keys(errors).length) throw fieldError(errors);
   const dimArea = sqft(out.dimLength, out.dimWidth, out.dimUnit);
   if (input.category === 'RESIDENTIAL') {

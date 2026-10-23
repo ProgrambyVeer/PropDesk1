@@ -187,6 +187,7 @@ model User {
   activities     ActivityLog[]
   savedSearches  SavedSearch[]
   statusChanges  PCStatusChange[]
+  requirementRequests RequirementRequest[]
 
   @@index([status])
   @@index([createdAt])
@@ -345,6 +346,23 @@ model Client {
   @@index([phone])
 }
 
+// Single-use public link a PC sends to a client. Only the SHA-256 hash of the token is stored.
+model RequirementRequest {
+  id             String    @id @default(cuid())
+  tokenHash      String    @unique
+  ownerId        String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  submissionKey  String?
+  clientId       String?
+  requirementIds String[]  @default([])
+  createdAt      DateTime  @default(now())
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+}
+
 model Requirement {
   id                String            @id @default(cuid())
   code              String            @unique
@@ -406,6 +424,8 @@ model Property {
   location      String
   locality      String?
   address       String?
+  latitude      Float?
+  longitude     Float?
   facing        String?
   area          Float?
   builtUpArea   Float?
