@@ -7,6 +7,7 @@ import { useFetch } from '../lib/hooks';
 import { ago, dt, human } from '../lib/format';
 import { Button, Card, Empty, ErrorState, ListSkeleton, Mono, Tabs } from '../components/ui';
 import { Timeline } from '../components/domain';
+import { HelpSupportCard } from '../components/Support';
 
 export function Notifications() {
   const nav = useNavigate();
@@ -72,5 +73,5 @@ export function Help() {
     ['How does sharing work?', 'Share a property with a client or another consultant. Registered numbers get an in-app notification with view-only access; other numbers can be shared via WhatsApp.'],
     ['What happens when I reschedule a follow-up?', 'The date/time is updated and the reminder notifications are moved to the new time.'],
   ];
-  return <div className="space-y-4" data-testid="help-page"><h1 className="text-3xl font-extrabold tracking-tight">Help</h1>{faqs.map(([q, a]) => <Card key={q} className="p-5"><p className="font-bold">{q}</p><p className="mt-1 text-sm text-slate-600">{a}</p></Card>)}</div>;
+  return <div className="space-y-4" data-testid="help-page"><h1 className="text-3xl font-extrabold tracking-tight">Help</h1><HelpSupportCard />{faqs.map(([q, a]) => <Card key={q} className="p-5"><p className="font-bold">{q}</p><p className="mt-1 text-sm text-slate-600">{a}</p></Card>)}</div>;
 }

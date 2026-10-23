@@ -37,12 +37,12 @@ export default function Properties() {
   const set = (k: string) => (e: any) => setFilters({ ...filters, [k]: e.target.value });
   return (
     <div className="space-y-5" data-testid="properties-page">
-      <div className="flex items-end justify-between"><div><h1 className="text-3xl font-extrabold tracking-tight">Properties</h1><p className="text-sm text-slate-500">{scope === 'offers' ? `${clientOffers.length} client offering${clientOffers.length === 1 ? '' : 's'}` : `${meta?.total ?? '…'} listings`}</p></div>
-        <div className="flex gap-2"><Button variant="secondary" onClick={() => nav('/drafts?kind=property')} data-testid="property-drafts-btn"><FilePenLine className="h-4 w-4" />Drafts</Button><Button onClick={() => nav('/properties/new')} data-testid="add-property-btn"><Plus className="h-4 w-4" />Add Property</Button></div></div>
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-3"><div className="min-w-0"><h1 className="text-3xl font-extrabold tracking-tight">Properties</h1><p className="text-sm text-slate-500">{scope === 'offers' ? `${clientOffers.length} client offering${clientOffers.length === 1 ? '' : 's'}` : `${meta?.total ?? '…'} listings`}</p></div>
+        <div className="flex shrink-0 items-center gap-2"><Button variant="secondary" onClick={() => nav('/drafts?kind=property')} data-testid="property-drafts-btn"><FilePenLine className="h-4 w-4" />Drafts</Button><Button onClick={() => nav('/properties/new')} data-testid="add-property-btn"><Plus className="h-4 w-4" />Add Property</Button></div></div>
       <Tabs tabs={[{ id: 'mine', label: 'My Active Properties' }, { id: 'inactive', label: 'Inactive Properties' }, { id: 'shared', label: 'Shared with me' }, { id: 'offers', label: 'Client Offerings' }]} value={scope} onChange={setScope} testid="properties-scope" />
       {scope !== 'offers' && <Tabs tabs={[{ id: 'list', label: 'List View' }, { id: 'map', label: 'Map View' }]} value={view} onChange={setView} testid="properties-view" />}
-      <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by ID, location, type" data-testid="properties-search-input" />
-        <Button variant="secondary" onClick={() => setOpen(!open)} data-testid="properties-filter-btn"><SlidersHorizontal className="h-4 w-4" /></Button></div>
+      <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by ID, location, type" className="min-w-0 flex-1" data-testid="properties-search-input" />
+        <Button variant="secondary" className="shrink-0" onClick={() => setOpen(!open)} data-testid="properties-filter-btn" aria-label="Filters"><SlidersHorizontal className="h-4 w-4" /></Button></div>
       {open && (
         <div className="grid animate-up gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="properties-filters">
           <Select value={filters.category} onChange={set('category')} data-testid="filter-category"><option value="">All categories</option>{CATEGORIES.map((c) => <option key={c} value={c}>{human(c)}</option>)}</Select>

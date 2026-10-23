@@ -20,6 +20,8 @@ export const config = {
   corsOrigins: (process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
   publicApiUrl: process.env.PUBLIC_API_URL || `http://localhost:${port}`,
   pcAppUrl: process.env.PC_APP_URL || 'http://localhost:5173',
+  supportEmail: process.env.SUPPORT_EMAIL || '',
+  supportPhone: process.env.SUPPORT_PHONE || '',
   otpProvider: process.env.OTP_PROVIDER || 'mock',
   mockOtpCode: process.env.MOCK_OTP_CODE || '123456',
   smsProvider: process.env.SMS_PROVIDER || 'mock',

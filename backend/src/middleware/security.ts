@@ -30,6 +30,7 @@ export function errorHandler(err: any, _req: Request, res: Response, _next: Next
   }
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') return res.status(409).json({ success: false, error: { code: 'CONFLICT', message: 'A record with these details already exists' } });
+    if (err.code === 'P2021' || err.code === 'P2022') return res.status(503).json({ success: false, error: { code: 'DB_NOT_READY', message: 'Service is being updated. Please try again shortly.' } });
     if (err.code === 'P2025') return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Record not found' } });
   }
   if (err?.name === 'MulterError') {

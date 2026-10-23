@@ -21,6 +21,7 @@ import { clientAnalytics, computeAnalytics, propertyAnalytics } from '../service
 import { globalSearch } from '../services/search';
 import { optStr } from '../services/validation';
 import { verifyGoogleCredential } from '../services/google-auth';
+import { createTicket, listTickets } from '../services/support';
 import { createRequirementRequest, describeRequirementRequest, submitRequirementRequest } from '../services/requirement-requests';
 
 export const pc = Router();
@@ -103,6 +104,9 @@ pc.get('/public/requirement-requests/:token', publicRequirementLimiter, async (r
 pc.post('/public/requirement-requests/:token', publicRequirementLimiter, async (req, res) => ok(res, await submitRequirementRequest(req.params.token, req.body), undefined, 201));
 
 pc.use(pcAuth);
+pc.get('/support/info', (_req, res) => ok(res, { email: config.supportEmail || null, phone: config.supportPhone || null }));
+pc.get('/support/tickets', async (req, res) => ok(res, await listTickets(me(req))));
+pc.post('/support/tickets', async (req, res) => ok(res, await createTicket(me(req), req.body), undefined, 201));
 
 pc.post('/requirement-requests', async (req, res) => ok(res, await createRequirementRequest(me(req)), undefined, 201));
 pc.post('/auth/logout', async (req, res) => {

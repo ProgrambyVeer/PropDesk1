@@ -548,6 +548,35 @@ describe('Tenant isolation & admin', () => {
   });
 });
 
+describe('Support tickets', () => {
+  const body = { category: 'Technical Issue', summary: 'Cannot upload photo', description: 'Photo upload spins forever on the add property form.', urgency: 'HIGH', contactEmail: 'help.me@example.com' };
+  let SA: ReturnType<typeof as>; let SB: ReturnType<typeof as>; let idB = '';
+  beforeAll(async () => { SA = as((await pcLogin('9000000031')).token); const b = await pcLogin('9000000032'); SB = as(b.token); idB = b.user.id; });
+  it('validates required fields', async () => {
+    await SA.post('/api/v1/support/tickets', { ...body, category: 'Nope' }).expect(422);
+    await SA.post('/api/v1/support/tickets', { ...body, summary: '' }).expect(422);
+    await SA.post('/api/v1/support/tickets', { ...body, contactEmail: 'not-an-email' }).expect(422);
+  });
+  it('persists a ticket for the authenticated PC only and ignores a client-supplied owner', async () => {
+    const t = (await SA.post('/api/v1/support/tickets', { ...body, userId: idB }).expect(201)).body.data;
+    expect(t.code).toMatch(/^TKT-\d{6}$/);
+    expect(t.status).toBe('OPEN');
+    const row = await prisma.supportTicket.findUniqueOrThrow({ where: { id: t.id } });
+    expect(row.userId).not.toBe(idB);
+    expect((await SA.get('/api/v1/support/tickets').expect(200)).body.data.map((x: any) => x.id)).toContain(t.id);
+    expect((await SB.get('/api/v1/support/tickets').expect(200)).body.data.map((x: any) => x.id)).not.toContain(t.id);
+  });
+  it('rejects an immediate duplicate submission', async () => {
+    await SB.post('/api/v1/support/tickets', body).expect(201);
+    await SB.post('/api/v1/support/tickets', body).expect(409);
+  });
+  it('exposes support contact info without inventing values', async () => {
+    const info = (await SA.get('/api/v1/support/info').expect(200)).body.data;
+    expect(info).toHaveProperty('email');
+    expect(info).toHaveProperty('phone');
+  });
+});
+
 describe('Public requirement link & property pin', () => {
   const reqBody = (key: string, n = 2) => ({
     idempotencyKey: key, client: { name: 'Public Client', phone: '9877700001' },

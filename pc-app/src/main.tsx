@@ -5,6 +5,9 @@ import { Toaster } from 'sonner';
 import App from './App';
 import { AuthProvider } from './lib/auth';
 import './index.css';
+import { initTheme } from './lib/theme';
+
+initTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

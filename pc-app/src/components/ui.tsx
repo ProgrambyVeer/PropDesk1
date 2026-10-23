@@ -8,7 +8,7 @@ export function Button({ variant = 'primary', loading, size = 'md', className, c
     <button {...p} disabled={disabled || loading} className={clsx(
       'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-[background-color,transform,box-shadow] duration-150 active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40',
       size === 'sm' ? 'h-9 px-3 text-sm' : size === 'lg' ? 'h-12 px-6 text-base' : 'h-11 px-4 text-sm',
-      variant === 'primary' && 'bg-navy text-white hover:bg-navy-800 shadow-sm',
+      variant === 'primary' && 'btn-primary bg-navy text-white hover:bg-navy-800 shadow-sm',
       variant === 'secondary' && 'bg-white text-navy border border-slate-200 hover:bg-slate-50',
       variant === 'ghost' && 'text-slate-600 hover:bg-slate-100',
       variant === 'danger' && 'bg-red-600 text-white hover:bg-red-700',
@@ -37,7 +37,7 @@ export function Chips<T extends string>({ options, value, onChange, label = (x: 
     <div className="flex flex-wrap gap-2" role="radiogroup">
       {options.map((o) => (
         <button type="button" role="radio" aria-checked={value === o} key={o} onClick={() => onChange(o)} data-testid={`${testid}-${o.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-          className={clsx('h-10 rounded-full border px-4 text-sm font-semibold transition-colors', value === o ? 'border-navy bg-navy text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300')}>{label(o)}</button>
+          className={clsx('h-10 rounded-full border px-4 text-sm font-semibold transition-colors', value === o ? 'btn-primary border-navy bg-navy text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300')}>{label(o)}</button>
       ))}
     </div>
   );

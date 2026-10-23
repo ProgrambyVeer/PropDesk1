@@ -2,17 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { toast } from 'sonner';
-import { Bell, Briefcase, Building2, CalendarClock, HelpCircle, History, Home, LogOut, Search, Settings, Trash2, User, Users, BarChart3, Landmark } from 'lucide-react';
+import { Bell, Building2, CalendarClock, Gem, HelpCircle, History, Home, LogOut, Search, Settings, Trash2, User, Users, BarChart3, Landmark } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { fileUrl, request } from '../lib/api';
 import { initials } from '../lib/format';
+import { ClientsIcon, DealsIcon, FollowUpsIcon, HomeIcon, PropertiesIcon } from './NavIcons';
 
 const NAV = [
-  { to: '/', label: 'Home', icon: Home, id: 'home' },
-  { to: '/properties', label: 'Properties', icon: Building2, id: 'properties' },
-  { to: '/clients', label: 'Clients', icon: Users, id: 'clients' },
-  { to: '/follow-ups', label: 'Follow Ups', icon: CalendarClock, id: 'followups' },
-  { to: '/deals', label: 'Deals', icon: Briefcase, id: 'deals' },
+  { to: '/', label: 'Home', icon: HomeIcon, id: 'home' },
+  { to: '/clients', label: 'Clients', icon: ClientsIcon, id: 'clients' },
+  { to: '/properties', label: 'Properties', icon: PropertiesIcon, id: 'properties' },
+  { to: '/follow-ups', label: 'Follow Ups', icon: FollowUpsIcon, id: 'followups' },
+  { to: '/deals', label: 'Deals', icon: DealsIcon, id: 'deals' },
 ];
 const MENU = [
   { to: '/profile', label: 'My Profile', icon: User }, { to: '/company', label: 'Company Details', icon: Landmark }, { to: '/settings', label: 'Settings', icon: Settings },
@@ -94,11 +95,11 @@ export default function Shell() {
         )}
       </header>
       <main className="mx-auto max-w-5xl px-4 pb-28 pt-5 lg:pb-12"><Outlet /></main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-xl pb-safe lg:hidden">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-5">
+      <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 nav3d rounded-t-3xl pb-safe lg:hidden" data-testid="bottom-nav">
+        <div className="mx-auto grid max-w-md grid-cols-5 gap-1 px-2 py-2">
           {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.to === '/'} data-testid={`bottom-nav-${n.id}`} className={({ isActive }) => clsx('flex flex-col items-center justify-center gap-1 text-[10.5px] font-bold uppercase tracking-wide transition-colors', isActive ? 'text-brand' : 'text-slate-400')}>
-              <n.icon className="h-[22px] w-[22px]" strokeWidth={2} />{n.label}
+            <NavLink key={n.to} to={n.to} end={n.to === '/'} data-testid={`bottom-nav-${n.id}`} className={({ isActive }) => clsx('flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-semibold tracking-wide transition-colors', isActive ? 'nav3d-active' : 'nav3d-idle')}>
+              <n.icon className="h-6 w-6 shrink-0" /><span className="max-w-full truncate">{n.label}</span>
             </NavLink>
           ))}
         </div>

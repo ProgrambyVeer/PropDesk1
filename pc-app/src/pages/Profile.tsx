@@ -5,6 +5,7 @@ import { ApiError, fileUrl, patch, upload } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { initials } from '../lib/format';
 import { Button, Card, Field, Input, Textarea } from '../components/ui';
+import { AppearanceCard } from '../components/Support';
 
 export default function Profile({ section = 'profile' }: { section?: 'profile' | 'company' | 'settings' }) {
   const { user, setUser, logout } = useAuth();
@@ -49,6 +50,7 @@ export default function Profile({ section = 'profile' }: { section?: 'profile' |
         {section === 'company' && <>{inp('companyWebsite', 'Website')}{inp('gstNumber', 'GST Number')}</>}
         {section === 'profile' ? editing && <div className="flex gap-2"><Button variant="secondary" onClick={cancel} disabled={busy} data-testid="profile-cancel-btn">Cancel</Button><Button onClick={save} loading={busy} data-testid="profile-save-btn">Save</Button></div> : <Button onClick={save} loading={busy} data-testid="profile-save-btn">Save</Button>}
       </Card>}
+      {section === 'profile' && !editing && <AppearanceCard />}
     </div>
   );
 }

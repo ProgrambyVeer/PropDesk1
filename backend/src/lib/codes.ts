@@ -1,6 +1,6 @@
 import { prisma } from './prisma';
 
-export type CodePrefix = 'REQ' | 'PROP' | 'CLI' | 'DEAL' | 'FU' | 'NTF' | 'PC';
+export type CodePrefix = 'REQ' | 'PROP' | 'CLI' | 'DEAL' | 'FU' | 'NTF' | 'PC' | 'TKT';
 
 // Atomic, monotonically increasing counters. Values are never decremented, so codes are never reused,
 // even after permanent deletion.
