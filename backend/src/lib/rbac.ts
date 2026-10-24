@@ -17,17 +17,19 @@ export const PERMISSIONS = {
   'master:write': 'Manage locations and amenities',
   'settings:read': 'View system settings',
   'settings:write': 'Change system settings',
+  'tickets:read': 'View support tickets',
+  'tickets:write': 'Reply to and manage support tickets',
   'admins:manage': 'Manage administrator accounts',
   export: 'Export data as CSV',
 } as const;
 export type Permission = keyof typeof PERMISSIONS;
 
-const READ: Permission[] = ['dashboard:read', 'analytics:read', 'pcs:read', 'records:read', 'notifications:read', 'audit:read', 'bin:read', 'master:read', 'settings:read'];
+const READ: Permission[] = ['dashboard:read', 'analytics:read', 'pcs:read', 'records:read', 'notifications:read', 'audit:read', 'bin:read', 'master:read', 'settings:read', 'tickets:read'];
 
 export const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
   SUPER_ADMIN: Object.keys(PERMISSIONS) as Permission[],
-  ADMIN: [...READ, 'pcs:write', 'pcs:status', 'records:write', 'bin:restore', 'master:write', 'export'],
-  SUPPORT_ADMIN: [...READ, 'pcs:status'],
+  ADMIN: [...READ, 'pcs:write', 'pcs:status', 'tickets:write', 'records:write', 'bin:restore', 'master:write', 'export'],
+  SUPPORT_ADMIN: [...READ, 'pcs:status', 'tickets:write'],
   READ_ONLY_ADMIN: READ,
 };
 

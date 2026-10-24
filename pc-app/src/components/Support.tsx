@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { LifeBuoy, Mail, Monitor, Moon, Phone, Sun, Ticket } from 'lucide-react';
+import { Camera, LifeBuoy, Mail, Monitor, Moon, Phone, Sun, Ticket, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { ApiError, get, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { date } from '../lib/format';
+import { date, time } from '../lib/format';
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme';
 import { Badge, Button, Card, Field, Input, Select, Sheet, Textarea } from './ui';
 
@@ -35,7 +35,67 @@ export function AppearanceCard() {
 const CATEGORIES = ['Login & Account', 'Profile & Settings', 'Clients', 'Properties', 'Requirements & Matching', 'Deals & Follow-ups', 'Sharing', 'Notifications', 'Technical Issue', 'Other'];
 const MODULES = ['Home', 'Clients', 'Properties', 'Requirements', 'Deals', 'Follow Ups', 'Notifications', 'Drafts & Bin', 'Profile', 'Other'];
 const URGENCIES = [['LOW', 'Low'], ['NORMAL', 'Normal'], ['HIGH', 'High'], ['URGENT', 'Urgent']];
-const STATUS: Record<string, [string, string]> = { OPEN: ['Open', 'amber'], IN_PROGRESS: ['In Progress', 'blue'], RESOLVED: ['Resolved', 'green'] };
+const STATUS: Record<string, [string, string]> = { OPEN: ['Open', 'amber'], IN_PROGRESS: ['In Progress', 'blue'], RESOLVED: ['Resolved', 'green'], CLOSED: ['Closed', 'slate'] };
+
+function TicketDetail({ id, onClose, onChanged }: { id: string | null; onClose: () => void; onChanged: () => void }) {
+  const [t, setT] = useState<any>(null);
+  const [err, setErr] = useState('');
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const load = () => get(`/support/tickets/${id}`).then((d) => { setT(d); setErr(''); }).catch((e) => setErr((e as Error).message || 'Could not load this ticket.'));
+  useEffect(() => { setT(null); setErr(''); setText(''); setConfirmClose(false); if (id) load(); }, [id]);
+  const send = async () => {
+    if (busy || !text.trim()) return;
+    setBusy(true);
+    try { setT(await post(`/support/tickets/${id}/messages`, { body: text.trim() })); setText(''); onChanged(); }
+    catch (e) { toast.error((e as Error).message || 'Could not send your message.'); }
+    finally { setBusy(false); }
+  };
+  const closeTicket = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { setT(await post(`/support/tickets/${id}/close`)); setConfirmClose(false); onChanged(); toast.success('Ticket closed'); }
+    catch (e) { toast.error((e as Error).message || 'Could not close the ticket.'); }
+    finally { setBusy(false); }
+  };
+  const isClosed = t?.status === 'CLOSED';
+  return (
+    <Sheet open={!!id} onClose={onClose} title={t ? t.code : 'Ticket'} testid="ticket-detail"
+      footer={t && !isClosed ? (
+        <div className="w-full space-y-2">
+          <div className="flex gap-2">
+            <Textarea value={text} onChange={(e: any) => setText(e.target.value)} maxLength={2000} rows={2} placeholder="Write a reply…" aria-label="Reply" data-testid="ticket-reply-input" />
+            <Button onClick={send} loading={busy} disabled={!text.trim()} data-testid="ticket-reply-send">Send</Button>
+          </div>
+          {confirmClose ? (
+            <div className="flex items-center justify-between gap-2 text-sm"><span className="text-slate-600">Close this ticket? You can't reply afterwards.</span><span className="flex gap-2"><Button variant="secondary" onClick={() => setConfirmClose(false)} disabled={busy}>Cancel</Button><Button onClick={closeTicket} loading={busy} data-testid="ticket-close-confirm">Close</Button></span></div>
+          ) : <button type="button" onClick={() => setConfirmClose(true)} className="text-sm font-semibold text-slate-500 underline" data-testid="ticket-close-btn">Close Ticket</button>}
+        </div>
+      ) : undefined}>
+      {err ? <p className="py-4 text-center text-sm text-red-600" data-testid="ticket-detail-error">{err}</p> : !t ? <p className="py-4 text-center text-sm text-slate-500">Loading…</p> : (
+        <div className="space-y-4">
+          <div>
+            <div className="flex items-start justify-between gap-2"><h3 className="font-bold">{t.summary}</h3><Badge tone={STATUS[t.status]?.[1] || 'slate'} className="shrink-0" data-testid="ticket-detail-status">{STATUS[t.status]?.[0] || t.status}</Badge></div>
+            <p className="mt-1 text-xs text-slate-500">{t.category}{t.module ? ` · ${t.module}` : ''} · {date(t.createdAt)} {time(t.createdAt)}{t.closedAt ? ` · Closed ${date(t.closedAt)}` : ''}</p>
+            <p className="mt-2 whitespace-pre-wrap break-words rounded-xl bg-slate-50 px-3 py-2.5 text-sm">{t.description}</p>
+          </div>
+          <div className="space-y-2" data-testid="ticket-messages">
+            {!t.messages.length ? <p className="text-center text-sm text-slate-500">No replies yet. Our team will respond here.</p> : t.messages.map((m: any) => (
+              <div key={m.id} className={clsx('flex', m.sender === 'PC' ? 'justify-end' : 'justify-start')}>
+                <div className={clsx('max-w-[85%] rounded-2xl px-3 py-2 text-sm', m.sender === 'PC' ? 'bg-navy text-white' : 'bg-slate-100')}>
+                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                  <p className="mt-1 text-[11px] opacity-70">{m.sender === 'PC' ? 'You' : 'Support'} · {date(m.createdAt)} {time(m.createdAt)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          {isClosed && <p className="text-center text-xs text-slate-500">This ticket is closed.</p>}
+        </div>
+      )}
+    </Sheet>
+  );
+}
 
 export function HelpSupportCard() {
   const { user } = useAuth();
@@ -47,6 +107,7 @@ export function HelpSupportCard() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<any>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const loadTickets = () => get('/support/tickets').then(setTickets).catch(() => setTickets([]));
   useEffect(() => { get('/support/info').then(setInfo).catch(() => setInfo({ email: null, phone: null })); loadTickets(); }, []);
@@ -91,14 +152,15 @@ export function HelpSupportCard() {
         {tickets === null ? <p className="text-sm text-slate-500">Loading…</p> : !tickets.length ? <p className="text-sm text-slate-500">You haven't raised any tickets yet.</p> : (
           <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
             {tickets.map((t) => (
-              <li key={t.id} className="flex items-start justify-between gap-3 px-3 py-2.5" data-testid={`ticket-${t.code}`}>
+              <li key={t.id} data-testid={`ticket-${t.code}`}><button type="button" onClick={() => setOpenId(t.id)} className="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left hover:bg-slate-50">
                 <div className="min-w-0"><p className="truncate text-sm font-semibold">{t.summary}</p><p className="truncate text-xs text-slate-500"><span className="font-mono">{t.code}</span> · {t.category} · {date(t.createdAt)}</p></div>
                 <Badge tone={STATUS[t.status]?.[1] || 'slate'} className="shrink-0">{STATUS[t.status]?.[0] || t.status}</Badge>
-              </li>
+              </button></li>
             ))}
           </ul>
         )}
       </div>
+      <TicketDetail id={openId} onClose={() => setOpenId(null)} onChanged={loadTickets} />
       <Sheet open={open} onClose={close} title={created ? 'Ticket submitted' : 'Raise a Ticket'} testid="ticket-sheet"
         footer={created ? <Button className="w-full" onClick={close}>Done</Button> : <><Button variant="secondary" onClick={close} disabled={busy}>Cancel</Button><Button className="flex-1" onClick={submit} loading={busy} data-testid="ticket-submit-btn">Submit Ticket</Button></>}>
         {created ? (
@@ -114,6 +176,67 @@ export function HelpSupportCard() {
           </div>
         )}
       </Sheet>
+    </Card>
+  );
+}
+
+type PermState = 'granted' | 'denied' | 'prompt' | 'unsupported' | 'device';
+const PERM_LABEL: Record<PermState, [string, string]> = { granted: ['Enabled', 'green'], denied: ['Blocked', 'red'], prompt: ['Not enabled', 'amber'], unsupported: ['Not supported', 'slate'], device: ['Device managed', 'slate'] };
+
+// Reflects what the browser reports; nothing is marked enabled unless the browser says so.
+export function AppPermissions() {
+  const [camera, setCamera] = useState<PermState>('prompt');
+  const [note, setNote] = useState('');
+  const hasCamera = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+  const contacts: PermState = typeof navigator !== 'undefined' && 'contacts' in navigator && 'ContactsManager' in window ? 'prompt' : 'unsupported';
+
+  useEffect(() => {
+    if (!hasCamera) { setCamera('unsupported'); return; }
+    let status: PermissionStatus | undefined;
+    const sync = () => status && setCamera(status.state as PermState);
+    navigator.permissions?.query({ name: 'camera' as PermissionName }).then((s) => { status = s; sync(); s.addEventListener('change', sync); }).catch(() => {});
+    return () => status?.removeEventListener('change', sync);
+  }, [hasCamera]);
+
+  const enableCamera = async () => {
+    setNote('');
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: true });
+      s.getTracks().forEach((tr) => tr.stop());
+      setCamera('granted');
+    } catch (e) {
+      const denied = (e as DOMException).name === 'NotAllowedError';
+      if (denied) setCamera('denied');
+      setNote(denied ? 'Camera access is blocked. Allow it from your browser or device site settings, then return here.' : 'No usable camera was found on this device.');
+    }
+  };
+  const pickContact = async () => {
+    setNote('');
+    try { await (navigator as any).contacts.select(['name', 'tel']); } catch { setNote('Contact access was not granted.'); }
+  };
+
+  const rows: { id: string; icon: typeof Camera; name: string; desc: string; state: PermState; action?: { label: string; run: () => void }; hint?: string }[] = [
+    { id: 'camera', icon: Camera, name: 'Camera', desc: 'Capture property photos and documents.', state: camera, action: camera === 'prompt' ? { label: 'Enable', run: enableCamera } : undefined, hint: camera === 'denied' ? 'Blocked. Change it in your browser or device site settings.' : camera === 'unsupported' ? 'Not supported in this browser.' : undefined },
+    { id: 'calls', icon: Phone, name: 'Calls', desc: 'Call clients directly from Estate OS.', state: 'device', hint: 'Calls open your phone dialer. Browsers have no call permission; manage this in your device settings.' },
+    { id: 'contacts', icon: Users, name: 'Contacts', desc: 'Pick clients from your phone contacts.', state: contacts, action: contacts === 'prompt' ? { label: 'Enable', run: pickContact } : undefined, hint: contacts === 'unsupported' ? 'Not supported in this browser. Available in Chrome on Android.' : 'Your device asks each time you choose a contact.' },
+  ];
+  return (
+    <Card className="space-y-3 p-5" data-testid="app-permissions">
+      <div><h2 className="font-bold">App Permissions</h2><p className="text-sm text-slate-500">Control what Estate OS can use on this device.</p></div>
+      <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+        {rows.map((r) => (
+          <li key={r.id} className="flex items-start gap-3 px-3 py-3" data-testid={`perm-${r.id}`}>
+            <r.icon className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" strokeWidth={1.75} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold">{r.name}</p><Badge tone={PERM_LABEL[r.state][1]}>{PERM_LABEL[r.state][0]}</Badge></div>
+              <p className="text-xs text-slate-500">{r.desc}</p>
+              {r.hint && <p className="mt-1 text-xs text-slate-500">{r.hint}</p>}
+            </div>
+            {r.action && <Button variant="secondary" onClick={r.action.run} data-testid={`perm-${r.id}-enable`}>{r.action.label}</Button>}
+          </li>
+        ))}
+      </ul>
+      {note && <p className="text-xs text-red-600" role="status">{note}</p>}
     </Card>
   );
 }

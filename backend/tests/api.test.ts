@@ -570,6 +570,29 @@ describe('Support tickets', () => {
     await SB.post('/api/v1/support/tickets', body).expect(201);
     await SB.post('/api/v1/support/tickets', body).expect(409);
   });
+  it('runs the full PC <-> admin conversation workflow with access control', async () => {
+    const t = (await SA.post('/api/v1/support/tickets', { ...body, summary: 'Workflow ticket' }).expect(201)).body.data;
+    const list = (await ADMIN.get('/api/v1/admin/tickets').expect(200)).body.data;
+    expect(list.find((x: any) => x.id === t.id)?.pc?.name).toBeDefined();
+    await SA.post(`/api/v1/support/tickets/${t.id}/messages`, { body: '   ' }).expect(422);
+    await SA.post(`/api/v1/support/tickets/${t.id}/messages`, { body: 'Any update?' }).expect(201);
+    await SA.post(`/api/v1/support/tickets/${t.id}/messages`, { body: 'Any update?' }).expect(409);
+    await ADMIN.post(`/api/v1/admin/tickets/${t.id}/reply`, { body: 'We are looking into it.' }).expect(201);
+    const d = (await SA.get(`/api/v1/support/tickets/${t.id}`).expect(200)).body.data;
+    expect(d.messages.map((m: any) => m.sender)).toEqual(['PC', 'ADMIN']);
+    expect(d.status).toBe('IN_PROGRESS');
+    await SB.get(`/api/v1/support/tickets/${t.id}`).expect(404);
+    await SB.post(`/api/v1/support/tickets/${t.id}/messages`, { body: 'hijack' }).expect(404);
+    await SB.post(`/api/v1/support/tickets/${t.id}/close`).expect(404);
+    await SA.get('/api/v1/admin/tickets').expect(401);
+    const ro = as((await api().post('/api/v1/admin/auth/login').send({ email: 'ro@test.local', password: 'RootPass123!' }).expect(200)).body.data.token);
+    await ro.get('/api/v1/admin/tickets').expect(200);
+    await ro.post(`/api/v1/admin/tickets/${t.id}/reply`, { body: 'nope' }).expect(403);
+    expect((await SA.post(`/api/v1/support/tickets/${t.id}/close`).expect(200)).body.data.status).toBe('CLOSED');
+    await SA.post(`/api/v1/support/tickets/${t.id}/messages`, { body: 'after close' }).expect(409);
+    await ADMIN.post(`/api/v1/admin/tickets/${t.id}/reply`, { body: 'after close' }).expect(409);
+    expect((await ADMIN.patch(`/api/v1/admin/tickets/${t.id}/status`, { status: 'OPEN' }).expect(200)).body.data.status).toBe('OPEN');
+  });
   it('exposes support contact info without inventing values', async () => {
     const info = (await SA.get('/api/v1/support/info').expect(200)).body.data;
     expect(info).toHaveProperty('email');

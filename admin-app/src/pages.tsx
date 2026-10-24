@@ -286,3 +286,50 @@ export function SearchPage() {
     </div>
   );
 }
+
+const TICKET_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+export const Tickets = () => <ListPage title="Support Tickets" path="/tickets" detail={D('tickets')} filters={[{ k: 'status', label: 'Status', opts: TICKET_STATUSES }]}
+  cols={[{ h: 'Ticket ID', r: (x) => <Code>{x.code}</Code> }, { h: 'Subject', r: (x) => <b>{x.summary}</b> }, { h: 'Category', r: (x) => x.category }, { h: 'PC', r: (x) => <PcCell o={x.pc} /> }, { h: 'Created', r: (x) => dt(x.createdAt) }, { h: 'Status', r: (x) => <Pill v={x.status} /> }]} />;
+
+export function TicketDetail() {
+  const { id } = useParams(); const { can } = useAdmin();
+  const { data: t, reload, error } = useFetch<any>(`/tickets/${id}`);
+  const [text, setText] = useState(''); const [busy, setBusy] = useState(false);
+  if (error) return <p className="text-red-600" data-testid="ticket-error">{error}</p>;
+  if (!t) return <p className="text-slate-400">Loading…</p>;
+  const write = can('tickets:write'); const closed = t.status === 'CLOSED';
+  const send = async () => {
+    if (busy || !text.trim()) return;
+    setBusy(true);
+    try { await post(`/tickets/${id}/reply`, { body: text.trim() }); setText(''); reload(); } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  };
+  const setStatus = async (status: string) => { try { await patch(`/tickets/${id}/status`, { status }); toast.success('Status updated'); reload(); } catch (e) { toast.error((e as Error).message); } };
+  return (
+    <div className="space-y-4">
+      <H title={`${t.code} · ${t.summary}`} sub={`${t.category}${t.module ? ` · ${t.module}` : ''} · Urgency ${human(t.urgency)} · ${dt(t.createdAt)}`}>
+        <Pill v={t.status} />
+        {write && <Sel value={t.status} onChange={(e) => setStatus(e.target.value)} data-testid="ticket-status-select">{TICKET_STATUSES.map((s) => <option key={s} value={s}>{human(s)}</option>)}</Sel>}
+      </H>
+      <Panel title="Raised by">
+        <p className="text-sm"><PcCell o={t.pc} /> · {t.contactEmail}</p>
+        <p className="mt-3 whitespace-pre-wrap break-words text-sm">{t.description}</p>
+      </Panel>
+      <Panel title="Conversation">
+        <div className="space-y-2" data-testid="ticket-messages">
+          {!t.messages.length ? <p className="text-sm text-slate-400">No replies yet.</p> : t.messages.map((m: any) => (
+            <div key={m.id} className={m.sender === 'ADMIN' ? 'flex justify-end' : 'flex justify-start'}>
+              <div className={`max-w-[75%] rounded-xl px-3 py-2 text-sm ${m.sender === 'ADMIN' ? 'bg-blue-700 text-white' : 'bg-slate-100'}`}>
+                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                <p className="mt-1 text-[11px] opacity-70">{m.sender === 'ADMIN' ? (m.adminName || 'Support') : 'PC'} · {dt(m.createdAt)}</p>
+              </div>
+            </div>))}
+        </div>
+        {write && (closed ? <p className="mt-4 text-sm text-slate-500">This ticket is closed. Reopen it to reply.</p> : (
+          <div className="mt-4 flex gap-2">
+            <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} rows={3} placeholder="Write a reply…" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" data-testid="ticket-reply-input" />
+            <Btn onClick={send} loading={busy} disabled={!text.trim()} data-testid="ticket-reply-send">Send</Btn>
+          </div>))}
+      </Panel>
+    </div>
+  );
+}

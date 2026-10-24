@@ -338,13 +338,19 @@ export function Timeline({ items, testid = 'timeline' }: { items?: any[]; testid
   );
 }
 
-export const Stat = ({ label, value, testid, accent, to }: { label: string; value: React.ReactNode; testid?: string; accent?: boolean; to?: string }) => {
+type StatArt = 'properties' | 'clients' | 'followups' | 'deals' | 'value' | 'commission';
+
+export const Stat = ({ label, value, testid, accent, to, art, bar }: { label: string; value: React.ReactNode; testid?: string; accent?: boolean; to?: string; art?: StatArt; bar?: string }) => {
   const card = (
-    <div className={`rounded-2xl p-4 ${accent ? 'bg-navy text-white' : 'border border-slate-200/80 bg-white shadow-card'} ${to ? 'transition-shadow hover:shadow-lift' : ''}`} data-testid={testid}>
-      <p className={`text-[11px] font-bold uppercase tracking-wider ${accent ? 'text-blue-200' : 'text-slate-500'}`}>{label}</p>
-      <p className="mt-1.5 text-2xl font-extrabold tracking-tight">{value}</p>
+    <div className={`relative h-full overflow-hidden rounded-2xl p-4 ${accent ? 'bg-navy text-white' : 'border border-slate-200/80 bg-white shadow-card'} ${to ? 'transition-shadow hover:shadow-lift' : ''}`} data-testid={testid}>
+      {art && <>
+        <img src={`/dash/${art}-light.png`} alt="" aria-hidden="true" loading="lazy" draggable={false} className="pointer-events-none absolute -bottom-1.5 right-2 h-14 w-auto max-w-[46%] select-none object-contain object-bottom dark:hidden sm:h-20" />
+        <img src={`/dash/${art}-dark.png`} alt="" aria-hidden="true" loading="lazy" draggable={false} className="pointer-events-none absolute -bottom-1.5 right-2 hidden h-14 w-auto max-w-[46%] select-none object-contain object-bottom dark:block sm:h-20" />
+      </>}
+      <p className={`relative flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider ${accent ? 'text-blue-200' : 'text-slate-500'}`}>{bar && <span aria-hidden="true" className="h-4 w-1 shrink-0 rounded-full" style={{ background: bar }} />}<span>{label}</span></p>
+      <p className="relative mt-1.5 text-2xl font-extrabold tracking-tight">{value}</p>
     </div>
   );
-  return to ? <Link to={to} className="block rounded-2xl" aria-label={`Open ${label}`}>{card}</Link> : card;
+  return to ? <Link to={to} className="block h-full rounded-2xl" aria-label={`Open ${label}`}>{card}</Link> : card;
 };
 export { inr };

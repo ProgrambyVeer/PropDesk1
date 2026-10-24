@@ -5,10 +5,10 @@ import { ApiError, fileUrl, patch, upload } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { initials } from '../lib/format';
 import { Button, Card, Field, Input, Textarea } from '../components/ui';
-import { AppearanceCard } from '../components/Support';
+import { AppearanceCard, AppPermissions } from '../components/Support';
 
 export default function Profile({ section = 'profile' }: { section?: 'profile' | 'company' | 'settings' }) {
-  const { user, setUser, logout } = useAuth();
+  const { user, setUser } = useAuth();
   const [f, setF] = useState<any>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -34,11 +34,7 @@ export default function Profile({ section = 'profile' }: { section?: 'profile' |
   return (
     <div className="mx-auto max-w-2xl space-y-6" data-testid={`${section}-page`}>
       <div className="flex items-center justify-between gap-3"><h1 className="text-3xl font-extrabold tracking-tight">{section === 'company' ? 'Company Details' : section === 'settings' ? 'Settings' : 'My Profile'}</h1>{section === 'profile' && !editing && <Button variant="secondary" onClick={() => setEditing(true)} data-testid="profile-edit-btn">Edit Profile</Button>}</div>
-      {section === 'settings' ? <Card className="space-y-4 p-5">
-        <p className="text-sm text-slate-600">Login is secured with Google. Signed in as <b>{user.email || (user.phone ? `+91 ${user.phone}` : 'Google account')}</b> ({user.pcCode}).</p>
-        <Button variant="secondary" onClick={async () => { if ('Notification' in window) toast(await Notification.requestPermission()); }} data-testid="settings-notifications-btn">Enable browser notifications</Button>
-        <Button variant="danger" onClick={logout} data-testid="settings-logout-btn">Logout</Button>
-      </Card> : <Card className="space-y-4 p-5">
+      {section === 'settings' ? <AppPermissions /> : <Card className="space-y-4 p-5">
         {section === 'profile' && <>
           <div className="flex items-center gap-4"><button onClick={() => editing && file.current?.click()} disabled={!editing} className="relative h-20 w-20 overflow-hidden rounded-2xl bg-navy text-xl font-bold text-white disabled:cursor-default" data-testid="profile-photo-btn">{user.profile?.photoUrl ? <img src={fileUrl(user.profile.photoUrl)} alt="" className="h-full w-full object-cover" /> : initials(user.name || user.email || user.phone || 'PC')}{editing && <span className="absolute bottom-1 right-1 rounded-full bg-white p-1 text-navy"><Camera className="h-3 w-3" /></span>}</button>
             <input ref={file} type="file" accept="image/*" hidden onChange={(e) => photo(e.target.files)} /><div><p className="font-bold">{user.name || 'Add your name'}</p><p className="text-sm text-slate-500">{user.phone ? `+91 ${user.phone}` : user.email}</p></div></div>

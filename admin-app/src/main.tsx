@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
-import { Bell, BarChart3, Briefcase, Building2, CalendarClock, ClipboardList, Cog, History, LayoutDashboard, LogOut, MapPin, Search, Shield, Sparkles, Trash2, User, UserCog, Users } from 'lucide-react';
+import { Bell, BarChart3, Briefcase, Building2, CalendarClock, ClipboardList, Cog, History, LayoutDashboard, LifeBuoy, LogOut, MapPin, Search, Shield, Sparkles, Trash2, User, UserCog, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { ApiError, get, post, token } from './lib/api';
 import { Btn, In } from './ui';
@@ -15,7 +15,7 @@ export const useAdmin = () => useContext(Ctx);
 
 const NAV = [
   ['/', 'Dashboard', LayoutDashboard], ['/pcs', 'PCs', Users], ['/clients', 'Clients', User], ['/properties', 'Properties', Building2], ['/requirements', 'Requirements', ClipboardList],
-  ['/deals', 'Deals', Briefcase], ['/follow-ups', 'Follow-ups', CalendarClock], ['/notifications', 'Notifications', Bell], ['/analytics', 'Analytics', BarChart3], ['/activity', 'Activity Logs', History],
+  ['/deals', 'Deals', Briefcase], ['/follow-ups', 'Follow-ups', CalendarClock], ['/notifications', 'Notifications', Bell], ['/tickets', 'Support Tickets', LifeBuoy], ['/analytics', 'Analytics', BarChart3], ['/activity', 'Activity Logs', History],
   ['/bin', 'Bin', Trash2], ['/locations', 'Locations', MapPin], ['/amenities', 'Amenities', Sparkles], ['/settings', 'System Settings', Cog], ['/users', 'Admin Users', UserCog], ['/profile', 'Profile', Shield],
 ] as const;
 
@@ -80,6 +80,7 @@ function App() {
           <Route path="/pcs" element={<P.Pcs />} /><Route path="/pcs/:id" element={<P.PcDetail />} />
           <Route path="/clients" element={<P.Clients />} /><Route path="/properties" element={<P.Properties />} /><Route path="/requirements" element={<P.Requirements />} />
           <Route path="/deals" element={<P.Deals />} /><Route path="/follow-ups" element={<P.FollowUps />} /><Route path="/notifications" element={<P.Notifications />} />
+          <Route path="/tickets" element={<P.Tickets />} /><Route path="/tickets/:id" element={<P.TicketDetail />} />
           <Route path="/:entity/:id" element={<P.RecordDetail />} />
           <Route path="/analytics" element={<P.Analytics />} /><Route path="/activity" element={<P.Activity />} /><Route path="/bin" element={<P.Bin />} />
           <Route path="/locations" element={<P.Locations />} /><Route path="/amenities" element={<P.Amenities />} /><Route path="/settings" element={<P.Settings />} />

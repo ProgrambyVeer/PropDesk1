@@ -21,7 +21,7 @@ import { clientAnalytics, computeAnalytics, propertyAnalytics } from '../service
 import { globalSearch } from '../services/search';
 import { optStr } from '../services/validation';
 import { verifyGoogleCredential } from '../services/google-auth';
-import { createTicket, listTickets } from '../services/support';
+import { closeOwnTicket, createTicket, getTicket, listTickets, replyAsPc } from '../services/support';
 import { createRequirementRequest, describeRequirementRequest, submitRequirementRequest } from '../services/requirement-requests';
 
 export const pc = Router();
@@ -107,6 +107,9 @@ pc.use(pcAuth);
 pc.get('/support/info', (_req, res) => ok(res, { email: config.supportEmail || null, phone: config.supportPhone || null }));
 pc.get('/support/tickets', async (req, res) => ok(res, await listTickets(me(req))));
 pc.post('/support/tickets', async (req, res) => ok(res, await createTicket(me(req), req.body), undefined, 201));
+pc.get('/support/tickets/:id', async (req, res) => ok(res, await getTicket(me(req), String(req.params.id))));
+pc.post('/support/tickets/:id/messages', async (req, res) => ok(res, await replyAsPc(me(req), String(req.params.id), req.body), undefined, 201));
+pc.post('/support/tickets/:id/close', async (req, res) => ok(res, await closeOwnTicket(me(req), String(req.params.id))));
 
 pc.post('/requirement-requests', async (req, res) => ok(res, await createRequirementRequest(me(req)), undefined, 201));
 pc.post('/auth/logout', async (req, res) => {

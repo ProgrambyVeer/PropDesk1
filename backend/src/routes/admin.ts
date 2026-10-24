@@ -12,6 +12,7 @@ import { ROLE_PERMISSIONS } from '../lib/rbac';
 import { adminAuth, issueSession, requirePerm } from '../middleware/auth';
 import { adminLoginLimiter } from '../middleware/security';
 import * as R from '../services/records';
+import { adminGetTicket, adminListTickets, adminReply, adminSetStatus } from '../services/support';
 import { changeStage, PROBABILITY, updateDeal } from '../services/deals';
 import { moveToBin, purgeFromBin, restoreFromBin } from '../services/bin';
 import { computeAnalytics } from '../services/analytics';
@@ -292,6 +293,20 @@ admin.get('/notifications', requirePerm('notifications:read'), async (req, res) 
   if (str(req.query.type)) where.type = { in: groups[String(req.query.type)] || [req.query.type] };
   const [total, items] = await Promise.all([prisma.notification.count({ where }), prisma.notification.findMany({ where, ...p, include: { recipient: pcSel } })]);
   ok(res, items, pageMeta(total, p));
+});
+
+/* ================= SUPPORT TICKETS ================= */
+admin.get('/tickets', requirePerm('tickets:read'), async (req, res) => { const r = await adminListTickets(req.query); ok(res, r.items, r.meta); });
+admin.get('/tickets/:id', requirePerm('tickets:read'), async (req, res) => ok(res, await adminGetTicket(String(req.params.id))));
+admin.post('/tickets/:id/reply', requirePerm('tickets:write'), async (req, res) => {
+  const t = await adminReply(req.actor!.kind === 'admin' ? req.actor!.adminId : '', String(req.params.id), req.body);
+  await audit(req, { action: 'TICKET_REPLIED', entityType: 'SUPPORT_TICKET', entityId: t.id, entityCode: t.code, affectedPcId: t.pc?.id });
+  ok(res, t, undefined, 201);
+});
+admin.patch('/tickets/:id/status', requirePerm('tickets:write'), async (req, res) => {
+  const r = await adminSetStatus(String(req.params.id), req.body);
+  await audit(req, { action: 'TICKET_STATUS_CHANGED', entityType: 'SUPPORT_TICKET', entityId: r.after.id, entityCode: r.after.code, affectedPcId: r.after.pc?.id, before: { status: r.before.status }, after: { status: r.after.status } });
+  ok(res, r.after);
 });
 
 /* ================= ACTIVITY / AUDIT (read-only) ================= */

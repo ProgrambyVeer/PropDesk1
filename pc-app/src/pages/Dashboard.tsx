@@ -28,12 +28,13 @@ export default function Dashboard() {
       </div>
       {loading || !data ? <ListSkeleton n={4} /> : (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            <Stat label="Properties" value={data.stats.properties} testid="stat-properties" to="/properties" />
-            <Stat label="Clients" value={data.stats.clients} testid="stat-clients" to="/clients" />
-            <Stat label="Follow-ups Today" value={data.stats.followUpsToday} testid="stat-followups-today" to="/follow-ups" />
-            <Stat label="Potential Deal Value" value={inr(data.stats.potentialDealValue)} testid="stat-deal-value" to="/deals" accent />
-            <Stat label="Potential Commission" value={inr(data.stats.potentialCommission)} testid="stat-commission" accent />
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="Properties" value={data.stats.properties} testid="stat-properties" to="/properties" art="properties" bar="#3B82F6" />
+            <Stat label="Clients" value={data.stats.clients} testid="stat-clients" to="/clients" art="clients" bar="#A855F7" />
+            <Stat label="Follow-ups Today" value={data.stats.followUpsToday} testid="stat-followups-today" to="/follow-ups" art="followups" bar="#F97316" />
+            <Stat label="Total Deals" value={data.pipeline.reduce((n: number, p: any) => n + p.count, 0)} testid="stat-total-deals" to="/deals" art="deals" bar="#EAB308" />
+            <Stat label="Potential Deal Value" value={inr(data.stats.potentialDealValue)} testid="stat-deal-value" to="/deals" art="value" bar="#22C55E" />
+            <Stat label="Potential Commission" value={inr(data.stats.potentialCommission)} testid="stat-commission" art="commission" bar="#EC4899" />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => nav('/properties/new')} data-testid="quick-add-property-btn"><Plus className="h-4 w-4" />Property</Button>

@@ -173,22 +173,22 @@ model User {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  profile        PCProfile?
-  sessions       Session[]
-  clients        Client[]
-  requirements   Requirement[]
-  properties     Property[]
-  links          PropertyClient[]
-  deals          Deal[]
-  followUps      FollowUp[]
-  notifications  Notification[]    @relation("NotificationRecipient")
-  sharesSent     PropertyShare[]   @relation("ShareSender")
-  sharesReceived PropertyShare[]   @relation("ShareReceiver")
-  activities     ActivityLog[]
-  savedSearches  SavedSearch[]
-  statusChanges  PCStatusChange[]
+  profile             PCProfile?
+  sessions            Session[]
+  clients             Client[]
+  requirements        Requirement[]
+  properties          Property[]
+  links               PropertyClient[]
+  deals               Deal[]
+  followUps           FollowUp[]
+  notifications       Notification[]       @relation("NotificationRecipient")
+  sharesSent          PropertyShare[]      @relation("ShareSender")
+  sharesReceived      PropertyShare[]      @relation("ShareReceiver")
+  activities          ActivityLog[]
+  savedSearches       SavedSearch[]
+  statusChanges       PCStatusChange[]
   requirementRequests RequirementRequest[]
-  supportTickets SupportTicket[]
+  supportTickets      SupportTicket[]
 
   @@index([status])
   @@index([createdAt])
@@ -269,9 +269,10 @@ model AdminUser {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  sessions      Session[]
-  auditLogs     AdminAuditLog[]
-  statusChanges PCStatusChange[]
+  sessions       Session[]
+  auditLogs      AdminAuditLog[]
+  ticketMessages TicketMessage[]
+  statusChanges  PCStatusChange[]
 }
 
 model Permission {
@@ -301,7 +302,7 @@ model AdminLoginAttempt {
 }
 
 model AdminAuditLog {
-  id              String    @id @default(cuid())
+  id              String     @id @default(cuid())
   adminId         String?
   action          String
   entityType      String?
@@ -313,7 +314,7 @@ model AdminAuditLog {
   userAgent       String?
   before          Json?
   after           Json?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime   @default(now())
   admin           AdminUser? @relation(fields: [adminId], references: [id])
 
   @@index([createdAt])
@@ -403,12 +404,12 @@ model Requirement {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  owner     User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  client    Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  links     PropertyClient[]
-  deals     Deal[]
-  offeredDeals Deal[] @relation("DealOfferingRequirement")
-  followUps FollowUp[]
+  owner        User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  client       Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  links        PropertyClient[]
+  deals        Deal[]
+  offeredDeals Deal[]           @relation("DealOfferingRequirement")
+  followUps    FollowUp[]
 
   @@index([ownerId, deletedAt])
   @@index([clientId])
@@ -524,35 +525,35 @@ model PropertyClient {
 }
 
 model Deal {
-  id                String    @id @default(cuid())
-  code              String    @unique
-  ownerId           String
-  clientId          String
-  propertyId        String
-  requirementId     String
+  id                    String    @id @default(cuid())
+  code                  String    @unique
+  ownerId               String
+  clientId              String
+  propertyId            String
+  requirementId         String
   offeringRequirementId String?
-  linkId            String?
-  stage             DealStage @default(NEW)
-  dealValue         Float?
-  commissionPercent Float?
-  commissionFixed   Float?
-  expectedCommission Float?
-  finalCommission   Float?
-  closingDate       DateTime?
-  lossReason        String?
-  notes             String?
-  deletedAt         DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  linkId                String?
+  stage                 DealStage @default(NEW)
+  dealValue             Float?
+  commissionPercent     Float?
+  commissionFixed       Float?
+  expectedCommission    Float?
+  finalCommission       Float?
+  closingDate           DateTime?
+  lossReason            String?
+  notes                 String?
+  deletedAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  owner       User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  client      Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  property    Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  requirement Requirement        @relation(fields: [requirementId], references: [id], onDelete: Cascade)
-  offeringRequirement Requirement? @relation("DealOfferingRequirement", fields: [offeringRequirementId], references: [id], onDelete: SetNull)
-  link        PropertyClient?    @relation(fields: [linkId], references: [id], onDelete: SetNull)
-  history     DealStageHistory[]
-  followUps   FollowUp[]
+  owner               User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  client              Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  property            Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  requirement         Requirement        @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  offeringRequirement Requirement?       @relation("DealOfferingRequirement", fields: [offeringRequirementId], references: [id], onDelete: SetNull)
+  link                PropertyClient?    @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  history             DealStageHistory[]
+  followUps           FollowUp[]
 
   @@index([ownerId, deletedAt])
   @@index([stage])
@@ -607,6 +608,12 @@ enum TicketStatus {
   OPEN
   IN_PROGRESS
   RESOLVED
+  CLOSED
+}
+
+enum TicketSender {
+  PC
+  ADMIN
 }
 
 model SupportTicket {
@@ -621,12 +628,28 @@ model SupportTicket {
   contactEmail String
   status       TicketStatus @default(OPEN)
   createdAt    DateTime     @default(now())
+  closedAt     DateTime?
   updatedAt    DateTime     @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages TicketMessage[]
 
   @@index([userId, createdAt])
   @@index([status])
+}
+
+model TicketMessage {
+  id        String       @id @default(cuid())
+  ticketId  String
+  sender    TicketSender
+  adminId   String?
+  body      String
+  createdAt DateTime     @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  admin  AdminUser?    @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
 }
 
 model Notification {
@@ -706,20 +729,20 @@ model ActivityLog {
 }
 
 model BinItem {
-  id               String    @id @default(cuid())
-  entityType       String
-  entityId         String
-  entityCode       String?
-  label            String
-  ownerId          String?
-  deletedById      String?
-  deletedByType    String
-  reason           String?
-  snapshot         Json      @default("{}")
-  status           BinStatus @default(IN_BIN)
-  deletedAt        DateTime  @default(now())
-  restoredAt       DateTime?
-  purgedAt         DateTime?
+  id            String    @id @default(cuid())
+  entityType    String
+  entityId      String
+  entityCode    String?
+  label         String
+  ownerId       String?
+  deletedById   String?
+  deletedByType String
+  reason        String?
+  snapshot      Json      @default("{}")
+  status        BinStatus @default(IN_BIN)
+  deletedAt     DateTime  @default(now())
+  restoredAt    DateTime?
+  purgedAt      DateTime?
 
   @@index([ownerId, status])
   @@index([entityType, entityId])
