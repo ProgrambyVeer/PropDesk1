@@ -14,7 +14,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <AuthProvider>
         <App />
-        <Toaster position="top-center" richColors closeButton />
+        <Toaster position="top-center" closeButton className="estate-toaster" />
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,

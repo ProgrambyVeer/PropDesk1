@@ -405,6 +405,28 @@ describe('Properties, photos, matching, linking, deals', () => {
     expect(full.history.length).toBe(6);
     expect(full.timeline.some((t: any) => t.action === 'DEAL_CLOSED')).toBe(true);
   });
+  it('creates a deal without a manual lead, never duplicates an active deal, and reports it on the match card', async () => {
+    const seller = (await A.post('/api/v1/clients', { name: 'Dup Seller', phone: '9920099001', location: 'Dup Locality' }).expect(201)).body.data;
+    const buyer = (await A.post('/api/v1/clients', { name: 'Dup Buyer', phone: '9920099002', location: 'Dup Locality' }).expect(201)).body.data;
+    const property = (await A.post('/api/v1/properties', { category: 'RESIDENTIAL', subtype: 'Apartment', location: 'Dup Locality' }).expect(201)).body.data;
+    const offer = (await A.post('/api/v1/requirements', RES(seller.id, { type: 'SELL_OFFERING', location: 'Dup Locality', locations: ['Dup Locality'], amount: 12000000, dimLength: null, dimWidth: null })).expect(201)).body.data;
+    await A.post('/api/v1/property-client-links', { clientId: seller.id, requirementId: offer.id, propertyId: property.id }).expect(201);
+    const looking = (await A.post('/api/v1/requirements', RES(buyer.id, { type: 'BUY_LOOKING', location: 'Dup Locality', locations: ['Dup Locality'], amountMin: 10000000, amount: 15000000, dimLength: null, dimWidth: null })).expect(201)).body.data;
+    const body = { clientId: buyer.id, requirementId: looking.id, propertyId: property.id };
+    const preview = (await A.post('/api/v1/deals/preview', body).expect(200)).body.data;
+    expect(preview.lead).toBeNull(); expect(preview.offering.client.name).toBe('Dup Seller');
+    const before = (await A.get(`/api/v1/requirements/${looking.id}/matches`).expect(200)).body.data.find((m: any) => m.property.id === property.id);
+    expect(before.deal).toBeNull();
+    const results = await Promise.all([1, 2, 3, 4].map(() => A.post('/api/v1/deals', body)));
+    for (const r of results) expect([200, 201]).toContain(r.status);
+    expect(results.filter((r) => r.status === 201).length).toBe(1);
+    expect(new Set(results.map((r) => r.body.data.id)).size).toBe(1);
+    expect(await prisma.deal.count({ where: { requirementId: looking.id, propertyId: property.id } })).toBe(1);
+    expect((await A.post('/api/v1/deals', body).expect(200)).body.data.alreadyExists).toBe(true);
+    const after = (await A.get(`/api/v1/requirements/${looking.id}/matches`).expect(200)).body.data.find((m: any) => m.property.id === property.id);
+    expect(after.deal).toMatchObject({ id: results[0].body.data.id });
+    await expect(prisma.deal.create({ data: { code: 'DEAL-DUPX', ownerId: results[0].body.data.ownerId, clientId: buyer.id, propertyId: property.id, requirementId: looking.id } })).rejects.toBeTruthy();
+  });
   it('closes a Buy deal atomically, inactivates only its property, and excludes an offering client from own matches', async () => {
     const property = (await A.post('/api/v1/properties', { category: 'RESIDENTIAL', subtype: 'Apartment', location: 'Lifecycle Locality' }).expect(201)).body.data;
     const offerer = (await A.post('/api/v1/clients', { name: 'Lifecycle Offerer', phone: '9920012370', location: 'Lifecycle Locality' }).expect(201)).body.data;

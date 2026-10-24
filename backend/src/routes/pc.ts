@@ -375,7 +375,10 @@ pc.get('/deals', async (req, res) => {
   const [total, items] = await Promise.all([prisma.deal.count({ where }), prisma.deal.findMany({ where, ...p, include: dealInclude })]);
   ok(res, items.map((d) => ({ ...d, probability: PROBABILITY[d.stage] })), pageMeta(total, p));
 });
-pc.post('/deals', async (req, res) => ok(res, await createDeal(req.actor, req.body), undefined, 201));
+pc.post('/deals', async (req, res) => {
+  const deal = await createDeal(req.actor, req.body);
+  ok(res, deal, undefined, (deal as any).alreadyExists ? 200 : 201);
+});
 pc.post('/deals/preview', async (req, res) => ok(res, await previewDeal(req.actor, req.body)));
 pc.get('/deals/:id', async (req, res) => {
   const d = await loadOwned<any>('deal', req.params.id, req.actor, { include: { ...dealInclude, history: { orderBy: { createdAt: 'asc' } }, followUps: { where: { deletedAt: null }, orderBy: { scheduledAt: 'desc' } } } });

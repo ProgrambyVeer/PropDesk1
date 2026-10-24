@@ -107,7 +107,6 @@ async function dealContext(actor: Actor, input: z.infer<typeof dealCreateSchema>
   if (!property) throw badRequest('Select an active property');
   if (!(await canViewProperty(actor, property))) throw forbidden('You cannot create a deal on this property');
   const link = await prisma.propertyClient.findUnique({ where: { requirementId_propertyId: { requirementId: req.id, propertyId: property.id } } });
-  if (!link || link.status !== 'ACTIVE') throw badRequest(`Create a lead for ${req.code} and ${property.code} before creating a deal`);
   const offering = await prisma.propertyClient.findFirst({
     where: { propertyId: property.id, status: 'ACTIVE', requirement: { type: offerType, status: 'ACTIVE', deletedAt: null } },
     include: { client: { select: { id: true, name: true } }, requirement: { select: { id: true, code: true, type: true, amount: true, deposit: true, availableDate: true, leasePeriodMonths: true } } },
@@ -119,23 +118,41 @@ async function dealContext(actor: Actor, input: z.infer<typeof dealCreateSchema>
 export async function previewDeal(actor: Actor, body: unknown) {
   const input = parse(dealCreateSchema.pick({ clientId: true, requirementId: true, propertyId: true }), body);
   const { req, property, link, offering } = await dealContext(actor, input);
-  return { client: { id: req.clientId, name: req.client?.name }, requirement: { id: req.id, code: req.code, type: req.type }, property: { id: property.id, code: property.code, location: property.location, subtype: property.subtype }, lead: { id: link.id }, offering: { client: offering.client, requirement: offering.requirement } };
+  return { client: { id: req.clientId, name: req.client?.name }, requirement: { id: req.id, code: req.code, type: req.type }, property: { id: property.id, code: property.code, location: property.location, subtype: property.subtype }, lead: link?.status === 'ACTIVE' ? { id: link.id } : null, offering: { client: offering.client, requirement: offering.requirement } };
 }
 
 export async function createDeal(actor: Actor, body: unknown) {
   const input = parse(dealCreateSchema, body);
-  const { req, property, link, offering } = await dealContext(actor, input);
-  const open = await prisma.deal.findFirst({ where: { requirementId: req.id, propertyId: property.id, deletedAt: null, stage: { notIn: ['CLOSED', 'LOST'] } } });
-  if (open) throw conflict(`An open deal (${open.code}) already exists for ${req.code} and ${property.code}`);
+  const { req, property, link: existingLink, offering } = await dealContext(actor, input);
+  const openWhere = { requirementId: req.id, propertyId: property.id, deletedAt: null, stage: { notIn: ['CLOSED', 'LOST'] as DealStage[] } };
+  const earlier = await prisma.deal.findFirst({ where: openWhere });
+  if (earlier) return { ...earlier, alreadyExists: true };
+  // The lead is an internal detail: reuse it, or create/reactivate it through the same validated path.
+  const link = existingLink?.status === 'ACTIVE' ? existingLink : await createLink(actor, { clientId: req.clientId, requirementId: req.id, propertyId: property.id });
   const pct = input.commissionPercent ?? (input.commissionFixed == null ? await getSetting<number>('commission.defaultPercent') : null);
-  const deal = await prisma.deal.create({
-    data: {
-      code: await nextCode('DEAL'), ownerId: req.ownerId, clientId: req.clientId, propertyId: property.id, requirementId: req.id, offeringRequirementId: offering.requirement.id, linkId: link.id,
-      dealValue: input.dealValue ?? offering.requirement.amount ?? null, commissionPercent: pct, commissionFixed: input.commissionFixed ?? null,
-      expectedCommission: expectedCommission(input.dealValue ?? offering.requirement.amount, pct, input.commissionFixed), notes: input.notes ?? null,
-      history: { create: { toStage: 'NEW', note: 'Deal created', changedBy: actor.name || actor.kind } },
-    },
-  });
+  const code = await nextCode('DEAL');
+  let deal: any;
+  try {
+    deal = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`deal:${req.id}:${property.id}`}))`;
+      const open = await tx.deal.findFirst({ where: openWhere });
+      if (open) return { ...open, alreadyExists: true };
+      return tx.deal.create({
+        data: {
+          code, ownerId: req.ownerId, clientId: req.clientId, propertyId: property.id, requirementId: req.id, offeringRequirementId: offering.requirement.id, linkId: link.id,
+          dealValue: input.dealValue ?? offering.requirement.amount ?? null, commissionPercent: pct, commissionFixed: input.commissionFixed ?? null,
+          expectedCommission: expectedCommission(input.dealValue ?? offering.requirement.amount, pct, input.commissionFixed), notes: input.notes ?? null,
+          history: { create: { toStage: 'NEW', note: 'Deal created', changedBy: actor.name || actor.kind } },
+        },
+      });
+    });
+  } catch (e: any) {
+    if (e?.code !== 'P2002') throw e;
+    const open = await prisma.deal.findFirst({ where: openWhere });
+    if (!open) throw e;
+    return { ...open, alreadyExists: true };
+  }
+  if (deal.alreadyExists) return deal;
   await logActivity(actor, {
     entityType: 'DEAL', entityId: deal.id, entityCode: deal.code, ownerId: deal.ownerId, action: 'DEAL_CREATED',
     description: `Deal ${deal.code} created for ${req.code} · ${property.code}${deal.dealValue ? ` · ${inr(deal.dealValue)}` : ''}`,
@@ -181,6 +198,10 @@ export async function changeStage(actor: Actor, id: string, body: unknown) {
   const deal = await loadOwned<any>('deal', id, actor, { include: { requirement: true, property: { select: { code: true } } } });
   if (deal.stage === input.stage) throw badRequest(`Deal is already in ${human(input.stage)}`);
   const data: any = { stage: input.stage };
+  if ((deal.stage === 'CLOSED' || deal.stage === 'LOST') && input.stage !== 'CLOSED' && input.stage !== 'LOST') {
+    const open = await prisma.deal.findFirst({ where: { requirementId: deal.requirementId, propertyId: deal.propertyId, id: { not: deal.id }, deletedAt: null, stage: { notIn: ['CLOSED', 'LOST'] } } });
+    if (open) throw conflict(`Cannot reopen: an active deal (${open.code}) already exists for this requirement and property`);
+  }
   if (input.stage === 'CLOSED') {
     const value = input.dealValue ?? deal.dealValue;
     const pct = input.commissionPercent ?? deal.commissionPercent;

@@ -145,6 +145,8 @@ export async function matchesForRequirement(req: Requirement, minScore?: number)
   for (const link of linkedOffers) offersByProperty.set(link.propertyId, [...(offersByProperty.get(link.propertyId) || []), { clientId: link.clientId, requirement: link.requirement }]);
   const links = await prisma.propertyClient.findMany({ where: { requirementId: req.id, status: 'ACTIVE' }, select: { propertyId: true, id: true } });
   const linked = new Map(links.map((l) => [l.propertyId, l.id]));
+  const openDeals = await prisma.deal.findMany({ where: { requirementId: req.id, deletedAt: null, stage: { notIn: ['CLOSED', 'LOST'] } }, select: { id: true, code: true, stage: true, propertyId: true }, orderBy: { createdAt: 'asc' } });
+  const dealByProperty = new Map(openDeals.map((d) => [d.propertyId, { id: d.id, code: d.code, stage: d.stage }]));
   return props
     .map((p) => {
       const linkedOffers = offersByProperty.get(p.id) || [];
@@ -153,7 +155,7 @@ export async function matchesForRequirement(req: Requirement, minScore?: number)
     })
     .filter((x): x is { property: typeof props[number]; match: MatchResult } => !!x.match && (minScore == null || x.match.score >= minScore))
     .sort((a, b) => b.match.score - a.match.score)
-    .map(({ property, match }) => ({ ...match, property, linked: linked.has(property.id), linkId: linked.get(property.id) || null }));
+    .map(({ property, match }) => ({ ...match, property, linked: linked.has(property.id), linkId: linked.get(property.id) || null, deal: dealByProperty.get(property.id) || null }));
 }
 
 // All requirement-property match pairs for an owner (used by dashboard / analytics).

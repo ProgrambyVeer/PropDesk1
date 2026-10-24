@@ -30,10 +30,6 @@ export default function RequirementDetail() {
   if (error) return <ErrorState message={error} />;
   if (loading || !r) return <ListSkeleton />;
   const looking = String(r.type).endsWith('_LOOKING');
-  const link = async (propertyId: string) => {
-    setBusy(propertyId);
-    try { await post('/property-client-links', { clientId: r.clientId, requirementId: r.id, propertyId, interestLevel: 'MEDIUM' }); toast.success(`Lead created for ${requirementLabel(r.type, r.code)}`); m.reload(); reload(); } catch (e) { toast.error((e as Error).message); } finally { setBusy(null); }
-  };
   const removeLead = async (lead: any) => {
     if (!confirm(`Delete Lead for ${requirementLabel(r.type, r.code)}? Any Deals created from this Lead will be archived. The property and client will remain.`)) return;
     setBusy(lead.propertyId);
@@ -47,6 +43,7 @@ export default function RequirementDetail() {
     setBusy(dealPreview.property.id);
     try {
       const d = await post('/deals', { clientId: r.clientId, requirementId: r.id, propertyId: dealPreview.property.id, dealValue: dealPreview.offering.requirement.amount });
+      if (d.alreadyExists) { toast.warning(`Deal ${d.code} is already in the pipeline`); setDealPreview(null); m.reload(); reload(); return; }
       toast.success(`Deal ${d.code} created`); nav(`/deals/${d.id}`);
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(null); }
   };
@@ -78,7 +75,7 @@ export default function RequirementDetail() {
                     <div className="flex items-start justify-between gap-2"><div>{looking ? <><Link to={`/properties/${x.property.id}/manage`} className="font-bold hover:text-brand">{x.property.subtype} · {x.property.location}</Link><p className="text-xs"><Mono>{x.property.code}</Mono>{x.property.transactions.length ? ` · ${x.property.transactions.map(txLabel).join(' | ')}` : x.matchedOffer ? ` · ${x.matchedOffer.type === 'SELL_OFFERING' ? 'Expected sale price' : x.matchedOffer.type === 'RENT_OFFERING' ? 'Rent' : 'Lease'} ${inr(x.matchedOffer.amount)}${x.matchedOffer.type === 'RENT_OFFERING' ? '/mo' : ''}` : ''}</p></> : <><Link to={`/clients/${x.matchedClient.id}`} className="font-bold hover:text-brand">{x.matchedClient.name}</Link><p className="text-xs text-slate-500">{requirementLabel(x.matchedRequirement.type, x.matchedRequirement.code)} · +91 {x.matchedClient.phone}</p><p className="mt-1 text-xs text-slate-500">Prefers {(x.matchedRequirement.locations?.length ? x.matchedRequirement.locations : [x.matchedRequirement.location]).join(', ')} · Budget {inr(x.matchedRequirement.amount)} · {x.matchedRequirement.subtype}{x.matchedRequirement.bhk ? ` · ${x.matchedRequirement.bhk} BHK` : ''}{x.matchedRequirement.area ? ` · ${x.matchedRequirement.area} sqft` : ''}</p>{x.matchedRequirement.amenities?.length > 0 && <p className="mt-1 text-xs text-slate-500">Amenities: {x.matchedRequirement.amenities.join(', ')}</p>}<p className="mt-1 text-xs text-slate-500">Property: <Link to={`/properties/${x.property.id}/manage`} className="font-semibold text-brand">{x.property.code}</Link> · {x.property.subtype}, {x.property.location} · Offer {inr(x.matchedOffer?.amount)}</p></>}</div>
                       <span className={`whitespace-nowrap rounded-xl px-2.5 py-1 text-sm font-extrabold ${x.score >= 80 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`} data-testid={`match-score-${x.property.code}`}>{x.score}% MATCH</span></div>
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">{x.reasons.map((rs: any) => <span key={rs.factor} title={rs.detail} className={`flex items-center gap-0.5 text-xs font-semibold ${rs.matched ? 'text-emerald-700' : rs.partial ? 'text-amber-600' : 'text-slate-400'}`}>{rs.matched ? <Check className="h-3.5 w-3.5" /> : rs.partial ? <Minus className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}{rs.detail}</span>)}</div>
-                    <div className="mt-3 flex gap-2">{looking && (x.linked ? <><Badge tone="blue">Lead for {requirementLabel(r.type, r.code)}</Badge><Button size="sm" loading={busy === x.property.id} onClick={() => deal(x.property.id)} data-testid={`match-deal-${x.property.code}`}>Create Deal</Button></> : <Button size="sm" variant="secondary" loading={busy === x.property.id} onClick={() => link(x.property.id)} data-testid={`match-link-${x.property.code}`}>Add Lead for {requirementLabel(r.type, r.code)}</Button>)}</div>
+                    <div className="mt-3 flex gap-2">{looking && (x.deal ? <span className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-700" aria-disabled="true" data-testid={`match-in-pipeline-${x.property.code}`}>Deal in Pipeline<Mono className="text-xs">{x.deal.code}</Mono></span> : <Button size="sm" loading={busy === x.property.id} onClick={() => deal(x.property.id)} data-testid={`match-deal-${x.property.code}`}>Create Deal</Button>)}</div>
                   </div>
                 </Card>);
             })}</div>}
