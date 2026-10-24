@@ -8,7 +8,7 @@ import { date, dt, human, inr, AMOUNT_LABEL, requirementLabel, STAGE_TONE } from
 import { Badge, Button, Card, Empty, ErrorState, ListSkeleton, Mono, Section, Tabs } from '../components/ui';
 import { ClientSheet, LinkSheet, Stat, Timeline } from '../components/domain';
 
-export function RequirementCard({ r, onChanged, onLink }: { r: any; onChanged: () => void; onLink: (r: any) => void }) {
+export function RequirementCard({ r, onChanged }: { r: any; onChanged: () => void }) {
   const nav = useNavigate();
   const remove = async () => { if (!confirm(`Move ${requirementLabel(r.type, r.code)} to Bin? Its associated Leads will be removed and dependent Deals archived. Other requirements are not affected.`)) return; await del(`/requirements/${r.id}`); toast.success(`${requirementLabel(r.type, r.code)} moved to Bin with its Leads and Deals archived`); onChanged(); };
   const dup = async () => { const c = await post(`/requirements/${r.id}/duplicate`); toast.success(`Duplicated as ${c.code}`); onChanged(); };
@@ -25,8 +25,8 @@ export function RequirementCard({ r, onChanged, onLink }: { r: any; onChanged: (
       </div>
       {(r.deposit != null || r.availableDate || r.leasePeriodMonths) && <p className="mt-2 text-xs text-slate-500">{[r.deposit != null ? `Deposit ${inr(r.deposit)}` : '', r.leasePeriodMonths ? `${r.leasePeriodMonths} month lease` : '', r.availableDate ? `Available ${date(r.availableDate)}` : ''].filter(Boolean).join(' · ')}</p>}
       <p className="mt-2 text-[11px] text-slate-400">Created {date(r.createdAt)} · Updated {date(r.updatedAt)}</p>
-      <div className="mt-3 grid grid-cols-6 gap-1 border-t border-slate-100 pt-2 text-[10.5px] font-semibold text-slate-500">
-        {[[Eye, 'View', () => nav(`/requirements/${r.id}`)], [Pencil, 'Edit', () => nav(`/requirements/${r.id}/edit`)], [Sparkles, 'Matches', () => nav(`/requirements/${r.id}`)], [Link2, 'Lead', () => onLink(r)], [Copy, 'Copy', dup], [Trash2, 'Delete', remove]].map(([I, l, fn]: any) => (
+      <div className="mt-3 grid grid-cols-5 gap-1 border-t border-slate-100 pt-2 text-[10.5px] font-semibold text-slate-500">
+        {[[Eye, 'View', () => nav(`/requirements/${r.id}`)], [Pencil, 'Edit', () => nav(`/requirements/${r.id}/edit`)], [Sparkles, 'Matches', () => nav(`/requirements/${r.id}`)], [Copy, 'Copy', dup], [Trash2, 'Delete', remove]].map(([I, l, fn]: any) => (
           <button key={l} onClick={fn} className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 hover:bg-slate-50 hover:text-navy" data-testid={`req-${l.toLowerCase()}-${r.code}`}><I className="h-4 w-4" />{l}</button>))}
       </div>
     </Card>
@@ -41,8 +41,8 @@ export default function ClientDetail() {
   const an = useFetch<any>(`/clients/${id}/analytics`);
   const [tab, setTab] = useState<string>('requirements');
   const [edit, setEdit] = useState(false);
-  const [link, setLink] = useState<{ reqId?: string } | null>(null);
-  useEffect(() => { if (sp.get('link')) setLink({}); }, [sp]);
+  const [link, setLink] = useState(false);
+  useEffect(() => { if (sp.get('link')) setLink(true); }, [sp]);
   if (error) return <ErrorState message={error} />;
   if (loading || !c) return <ListSkeleton />;
   const refresh = () => { reload(); an.reload(); };
@@ -66,11 +66,11 @@ export default function ClientDetail() {
       </div>
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => nav(`/requirements/new?clientId=${c.id}`)} data-testid="client-add-requirement-btn"><Plus className="h-4 w-4" />Add Requirement</Button>
-        {c.requirements.some((r: any) => String(r.type).endsWith('_OFFERING')) && <Button variant="secondary" onClick={() => setLink({})} data-testid="client-link-property-btn"><Link2 className="h-4 w-4" />Link Property</Button>}
+        {c.requirements.some((r: any) => String(r.type).endsWith('_OFFERING')) && <Button variant="secondary" onClick={() => setLink(true)} data-testid="client-link-property-btn"><Link2 className="h-4 w-4" />Link Property</Button>}
         <Button variant="ghost" onClick={() => nav('/clients')} data-testid="client-done-btn">Done</Button>
       </div>
       <Tabs tabs={[{ id: 'requirements', label: 'Requirements', count: c.requirements.length }, { id: 'properties', label: 'Leads', count: c.links.length }, { id: 'deals', label: 'Deals', count: c.deals.length }, { id: 'followups', label: 'Follow-ups', count: c.followUps.length }, { id: 'activity', label: 'Activity' }, { id: 'analytics', label: 'Analytics' }]} value={tab} onChange={setTab} testid="client-tab" />
-      {tab === 'requirements' && (c.requirements.length ? <div className="grid gap-4 md:grid-cols-2" data-testid="requirements-list">{c.requirements.map((r: any) => <RequirementCard key={r.id} r={r} onChanged={refresh} onLink={(x) => setLink({ reqId: x.id })} />)}</div> : <Empty title="No requirements yet" action={<Button onClick={() => nav(`/requirements/new?clientId=${c.id}`)}>Add Requirement</Button>} />)}
+      {tab === 'requirements' && (c.requirements.length ? <div className="grid gap-4 md:grid-cols-2" data-testid="requirements-list">{c.requirements.map((r: any) => <RequirementCard key={r.id} r={r} onChanged={refresh} />)}</div> : <Empty title="No requirements yet" action={<Button onClick={() => nav(`/requirements/new?clientId=${c.id}`)}>Add Requirement</Button>} />)}
       {tab === 'properties' && (c.links.length ? <Card className="divide-y divide-slate-100">{c.links.map((l: any) => <div key={l.id} className="flex items-center justify-between gap-3 p-4"><Link to={`/properties/${l.property.id}/manage`} className="min-w-0 flex-1 hover:text-brand"><p className="font-semibold">{l.property.subtype} · {l.property.location}</p><p className="text-xs"><Mono>{l.property.code}</Mono> → <Mono>{requirementLabel(l.requirement.type, l.requirement.code)}</Mono> · {human(l.interestLevel)} interest</p></Link><Badge tone={STAGE_TONE[l.dealStage]}>{human(l.dealStage)}</Badge><Button size="sm" variant="ghost" onClick={() => removeLead(l)} aria-label="Delete Lead" data-testid={`client-delete-lead-${l.requirement.code}`}><Trash2 className="h-4 w-4 text-red-600" /></Button></div>)}</Card> : <Empty title="No leads yet" />)}
       {tab === 'deals' && (c.deals.length ? <Card className="divide-y divide-slate-100">{c.deals.map((d: any) => <Link key={d.id} to={`/deals/${d.id}`} className="flex items-center justify-between p-4 hover:bg-slate-50"><div><p className="font-semibold">{d.property.subtype} · {d.property.location}</p><p className="text-xs"><Mono>{d.code}</Mono> · <Mono>{requirementLabel(d.requirement.type, d.requirement.code)}</Mono> · {inr(d.dealValue)}</p></div><Badge tone={STAGE_TONE[d.stage]}>{human(d.stage)}</Badge></Link>)}</Card> : <Empty title="No deals yet" />)}
       {tab === 'followups' && (c.followUps.length ? <Card className="divide-y divide-slate-100">{c.followUps.map((f: any) => <div key={f.id} className="flex justify-between p-4 text-sm"><span><b>{human(f.type)}</b> · {dt(f.scheduledAt)}{f.requirement ? ` · ${requirementLabel(f.requirement.type, f.requirement.code)}` : ''}</span><Badge tone={f.status === 'COMPLETED' ? 'green' : f.status === 'MISSED' ? 'red' : 'blue'}>{human(f.status)}</Badge></div>)}</Card> : <Empty title="No follow-ups" />)}
@@ -81,7 +81,7 @@ export default function ClientDetail() {
           <tbody>{a.byRequirement.map((r: any) => <tr key={r.id} className="border-t border-slate-100"><td className="px-4 py-2"><Mono>{requirementLabel(r.type, r.code)}</Mono></td><td className="px-4 py-2">{human(r.type)}</td><td className="px-4 py-2">{r.matches}</td><td className="px-4 py-2">{r.links}</td><td className="px-4 py-2">{r.followUps}</td><td className="px-4 py-2">{r.deals}</td><td className="px-4 py-2">{inr(r.dealValue)}</td></tr>)}</tbody></table></Card></Section>
       </div>}
       <ClientSheet open={edit} onClose={() => setEdit(false)} initial={c} onSaved={() => { setEdit(false); toast.success('Client updated'); refresh(); }} />
-      <LinkSheet open={!!link} onClose={() => setLink(null)} clientId={c.id} requirementId={link?.reqId} onDone={refresh} />
+      <LinkSheet open={link} onClose={() => setLink(false)} clientId={c.id} onDone={refresh} />
     </div>
   );
 }

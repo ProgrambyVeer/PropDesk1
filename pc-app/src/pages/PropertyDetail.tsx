@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, CalendarClock, Check, Link2, Pencil, Plus, Share2, Trash2, Unlink, X } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Check, Pencil, Plus, Share2, Trash2, Unlink, X } from 'lucide-react';
 import { del, fileUrl, post } from '../lib/api';
 import { useFetch } from '../lib/hooks';
 import { date, dims, human, inr, requirementLabel, txLabel, STAGE_TONE } from '../lib/format';
 import { Badge, Button, Card, Empty, ErrorState, Field, KV, ListSkeleton, Mono, Section, Select, Sheet, Tabs } from '../components/ui';
-import { FollowUpSheet, LinkSheet, propertyShareLabel, SharedBadge, ShareSheet, Stat, Timeline } from '../components/domain';
+import { FollowUpSheet, propertyShareLabel, SharedBadge, ShareSheet, Stat, Timeline } from '../components/domain';
 import { hasPin, OpenInGoogleMaps } from '../components/maps';
 
 export default function PropertyDetail({ commandCenter = false }: { commandCenter?: boolean }) {
@@ -19,7 +19,7 @@ export default function PropertyDetail({ commandCenter = false }: { commandCente
   const interestedCandidates = useFetch<any[]>(owner && commandCenter ? `/properties/${id}/interested-buyer-candidates` : null);
   const followUps = useFetch<any[]>(owner && commandCenter ? '/follow-ups' : null, { propertyId: id, pageSize: 100 });
   const [tab, setTab] = useState<'overview' | 'clients' | 'analytics' | 'activity'>('overview');
-  const [share, setShare] = useState(false); const [link, setLink] = useState<any>(null); const [photo, setPhoto] = useState(0); const [followUpForm, setFollowUpForm] = useState<any>(null); const [interestedForm, setInterestedForm] = useState(false); const [interestedClientId, setInterestedClientId] = useState(''); const [interestedRequirementId, setInterestedRequirementId] = useState(''); const [interestedBusy, setInterestedBusy] = useState(false);
+  const [share, setShare] = useState(false); const [photo, setPhoto] = useState(0); const [followUpForm, setFollowUpForm] = useState<any>(null); const [interestedForm, setInterestedForm] = useState(false); const [interestedClientId, setInterestedClientId] = useState(''); const [interestedRequirementId, setInterestedRequirementId] = useState(''); const [interestedBusy, setInterestedBusy] = useState(false);
   if (error) return <ErrorState message={error} />;
   if (loading || !p) return <ListSkeleton />;
   const remove = async () => { if (!confirm(`Move ${p.code} to Bin?`)) return; await del(`/properties/${p.id}`); toast.success(`${p.code} moved to Bin`); nav('/properties'); };
@@ -65,7 +65,6 @@ export default function PropertyDetail({ commandCenter = false }: { commandCente
         {owner && <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => nav(`/properties/${p.id}/edit`)} data-testid="property-edit-btn"><Pencil className="h-4 w-4" />Edit</Button>
           <Button variant="secondary" onClick={() => setShare(true)} data-testid="property-share-btn"><Share2 className="h-4 w-4" />Share</Button>
-          <Button variant="secondary" onClick={() => setLink({})} data-testid="property-link-client-btn"><Link2 className="h-4 w-4" />Create Lead</Button>
           <Button variant="ghost" onClick={remove} data-testid="property-delete-btn"><Trash2 className="h-4 w-4 text-red-600" /></Button>
         </div>}
       </div>
@@ -82,7 +81,6 @@ export default function PropertyDetail({ commandCenter = false }: { commandCente
           {an.loading ? <ListSkeleton n={2} /> : matchingBuyers.length ? <div className="grid gap-3 md:grid-cols-2">{matchingBuyers.map((match: any) => <Card key={match.requirementId} className="p-4" data-testid={`command-match-${match.requirementCode}`}>
             <div className="flex items-start justify-between gap-3"><div><Link to={`/clients/${match.clientId}`} className="font-semibold hover:text-brand">{match.clientName}</Link><p className="text-xs text-slate-500"><Link to={`/requirements/${match.requirementId}`} className="font-mono text-brand-600">{requirementLabel(match.type, match.requirementCode)}</Link></p></div><Badge tone="green">{match.score}%</Badge></div>
             <div className="mt-2 space-y-1">{match.reasons.map((reason: any) => <p key={reason.factor} className="text-xs text-slate-600"><b>{reason.factor}:</b> {reason.detail}</p>)}</div>
-            <div className="mt-3">{match.hasLead ? <Badge tone="blue">Lead exists</Badge> : <Button size="sm" variant="secondary" onClick={() => setLink({ clientId: match.clientId, requirementId: match.requirementId })}>Create Lead</Button>}</div>
           </Card>)}</div> : <Empty title="No matches yet" text="No active eligible looking requirements match this property right now." />}
         </Section>
         <Section title={`Deals · ${p.deals.length}`}>
@@ -137,7 +135,6 @@ export default function PropertyDetail({ commandCenter = false }: { commandCente
       </div> : <ListSkeleton n={2} />)}
       {tab === 'activity' && <Card className="p-5"><Timeline items={a?.timeline} testid="property-timeline" /></Card>}
       <ShareSheet open={share} onClose={() => setShare(false)} property={p} onDone={reload} />
-      <LinkSheet open={!!link} onClose={() => setLink(null)} propertyId={p.id} clientId={link?.clientId} requirementId={link?.requirementId} onDone={() => { reload(); an.reload(); }} />
       <FollowUpSheet open={!!followUpForm} onClose={() => setFollowUpForm(null)} initial={followUpForm} onDone={() => { followUps.reload(); an.reload(); }} />
       <Sheet open={interestedForm} onClose={() => setInterestedForm(false)} title="Add Interested Buyer" testid="interested-buyer-sheet" footer={<Button className="w-full" onClick={addInterestedBuyer} loading={interestedBusy} disabled={!interestedClientId || !interestedRequirementId}>Add Interested Buyer</Button>}>
         <div className="space-y-4"><Field label="Interested client" required><Select value={interestedClientId} onChange={(event) => { setInterestedClientId(event.target.value); setInterestedRequirementId(''); }}><option value="">Select client</option>{interestedClients.map((client: any) => <option key={client.id} value={client.id}>{client.name} · {client.code}</option>)}</Select></Field><Field label="Looking requirement" required><Select value={interestedRequirementId} disabled={!interestedClientId} onChange={(event) => setInterestedRequirementId(event.target.value)}><option value="">Select requirement</option>{selectedInterestedRequirements.map((item: any) => <option key={item.requirement.id} value={item.requirement.id}>{requirementLabel(item.requirement.type, item.requirement.code)}</option>)}</Select></Field></div>

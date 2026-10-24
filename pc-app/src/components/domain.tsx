@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Building2, MapPin, Ruler, Share2, Link2, Pencil, Trash2, Eye, MessageCircle, Plus, X, LayoutDashboard } from 'lucide-react';
+import { Building2, MapPin, Ruler, Share2, Pencil, Trash2, Eye, MessageCircle, Plus, X, LayoutDashboard } from 'lucide-react';
 import { ApiError, del, fileUrl, get, patch, post } from '../lib/api';
 import { useAction, useDebounced, useFetch } from '../lib/hooks';
 import { ago, dims, human, inr, requirementLabel, toLocalInput, txLabel, FU_TYPES, STAGE_TONE } from '../lib/format';
@@ -33,7 +33,6 @@ export function PropertyCard({ p, onChanged, propertyListState }: { p: any; onCh
   const nav = useNavigate();
   const location = useLocation();
   const [share, setShare] = useState(false);
-  const [link, setLink] = useState(false);
   const owner = p.access !== 'VIEW_ONLY';
   const commandState = { returnTo: location.pathname, propertyListState };
   const commandPath = `/properties/${p.id}/manage`;
@@ -80,17 +79,15 @@ export function PropertyCard({ p, onChanged, propertyListState }: { p: any; onCh
             <div className="text-[11px] font-semibold text-slate-600">Won: {p.wonDeals ?? 0} | Lost: {p.lostDeals ?? 0}</div>
           </div>
         </Link>
-        <div className="grid grid-cols-6 border-t border-slate-100 text-slate-500">
+        <div className="grid grid-cols-5 border-t border-slate-100 text-slate-500">
           <IconAct icon={Eye} label="View" onClick={() => nav(`/properties/${p.id}`)} id={`view-${p.code}`} />
           <IconAct icon={Pencil} label="Edit" onClick={() => nav(`/properties/${p.id}/edit`)} disabled={!owner} id={`edit-${p.code}`} />
           <IconAct icon={Share2} label="Share" onClick={() => setShare(true)} disabled={!owner} id={`share-${p.code}`} />
-          <IconAct icon={Link2} label="Lead" onClick={() => setLink(true)} id={`link-${p.code}`} />
           <IconAct icon={LayoutDashboard} label="Manage Property" onClick={() => nav(commandPath, { state: commandState })} id={`manage-${p.code}`} />
           <IconAct icon={Trash2} label="Delete" onClick={remove} disabled={!owner} id={`delete-${p.code}`} />
         </div>
       </Card>
       <ShareSheet open={share} onClose={() => setShare(false)} property={p} onDone={onChanged} />
-      <LinkSheet open={link} onClose={() => setLink(false)} propertyId={p.id} onDone={onChanged} />
     </div>
   );
 }
