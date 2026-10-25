@@ -18,6 +18,8 @@ export default function PropertyDetail({ commandCenter = false }: { commandCente
   const an = useFetch<any>(owner ? `/properties/${id}/analytics` : null);
   const interestedCandidates = useFetch<any[]>(commandCenter || p?.access === 'VIEW_ONLY' ? `/properties/${id}/interested-buyer-candidates` : null);
   const followUps = useFetch<any[]>(commandCenter || p?.access === 'VIEW_ONLY' ? '/follow-ups' : null, { propertyId: id, pageSize: 100 });
+  const [failedImgs, setFailedImgs] = useState<string[]>([]);
+  const imgFailed = (u: string) => setFailedImgs((s) => (s.includes(u) ? s : [...s, u]));
   const [tab, setTab] = useState<'overview' | 'clients' | 'analytics' | 'activity'>('overview');
   const [share, setShare] = useState(false); const [photo, setPhoto] = useState(0); const [followUpForm, setFollowUpForm] = useState<any>(null); const [interestedForm, setInterestedForm] = useState(false); const [interestedClientId, setInterestedClientId] = useState(''); const [interestedRequirementId, setInterestedRequirementId] = useState(''); const [interestedBusy, setInterestedBusy] = useState(false);
   if (error) return <ErrorState message={error} />;
@@ -59,8 +61,8 @@ export default function PropertyDetail({ commandCenter = false }: { commandCente
     <div className="space-y-6" data-testid="property-detail">
       {shareLabel && <SharedBadge label={shareLabel} />}
       <div className="overflow-hidden rounded-3xl bg-slate-100">
-        <div className="aspect-[16/9] max-h-[420px] w-full">{p.photos[photo] ? <img src={fileUrl(p.photos[photo].url)} alt="" className="h-full w-full object-cover" data-testid="property-main-photo" /> : <div className="flex h-full items-center justify-center text-slate-400">No photos</div>}</div>
-        {p.photos.length > 1 && <div className="no-scrollbar flex gap-2 overflow-x-auto bg-white p-2">{p.photos.map((ph: any, i: number) => <button key={ph.id} onClick={() => setPhoto(i)} className={`h-14 w-20 shrink-0 overflow-hidden rounded-lg ring-2 ${i === photo ? 'ring-navy' : 'ring-transparent'}`}><img src={fileUrl(ph.url)} alt="" className="h-full w-full object-cover" /></button>)}</div>}
+        <div className="aspect-[16/9] max-h-[420px] w-full">{p.photos[photo] && !failedImgs.includes(p.photos[photo].url) ? <img src={fileUrl(p.photos[photo].url)} alt="" onError={() => imgFailed(p.photos[photo].url)} className="h-full w-full object-cover" data-testid="property-main-photo" /> : p.photos[photo] ? <div className="flex h-full items-center justify-center text-slate-400" data-testid="property-photo-unavailable">Photo unavailable</div> : <div className="flex h-full items-center justify-center text-slate-400">No photos</div>}</div>
+        {p.photos.length > 1 && <div className="no-scrollbar flex gap-2 overflow-x-auto bg-white p-2">{p.photos.map((ph: any, i: number) => <button key={ph.id} onClick={() => setPhoto(i)} className={`h-14 w-20 shrink-0 overflow-hidden rounded-lg ring-2 ${i === photo ? 'ring-navy' : 'ring-transparent'}`}>{failedImgs.includes(ph.url) ? <span className="block h-full w-full bg-slate-100" /> : <img src={fileUrl(ph.url)} alt="" onError={() => imgFailed(ph.url)} className="h-full w-full object-cover" />}</button>)}</div>}
       </div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>{commandCenter && <button onClick={back} className="mb-2 flex items-center gap-1 text-sm font-semibold text-slate-500" data-testid="property-command-back-btn"><ArrowLeft className="h-4 w-4" />Back</button>}<Mono>{p.code}</Mono><h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{commandCenter ? 'Property Command Center' : p.title || `${p.bhk ? `${p.bhk} BHK ` : ''}${p.subtype} in ${p.location}`}</h1>
