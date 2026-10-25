@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import type { UserStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { AppError, badRequest, ci, fieldError, forbidden, isIndianMobile, normalizePhone, notFound, ok, pageMeta, paging, parse, str } from '../lib/http';
+import { AppError, badRequest, ci, conflict, fieldError, forbidden, isIndianMobile, normalizePhone, notFound, ok, pageMeta, paging, parse, str } from '../lib/http';
+import { notify } from '../services/notifications';
 import { nextCode } from '../lib/codes';
 import { loadOwned } from '../lib/scope';
 import { audit, logActivity } from '../lib/activity';
@@ -307,6 +308,33 @@ admin.patch('/tickets/:id/status', requirePerm('tickets:write'), async (req, res
   const r = await adminSetStatus(String(req.params.id), req.body);
   await audit(req, { action: 'TICKET_STATUS_CHANGED', entityType: 'SUPPORT_TICKET', entityId: r.after.id, entityCode: r.after.code, affectedPcId: r.after.pc?.id, before: { status: r.before.status }, after: { status: r.after.status } });
   ok(res, r.after);
+});
+
+/* ================= EMAIL CHANGE REQUESTS (Super Admin only) ================= */
+admin.get('/email-change-requests', requirePerm('admins:manage'), async (req, res) => {
+  const p = paging(req.query, ['createdAt']);
+  const where: any = str(req.query.status) ? { status: String(req.query.status) } : {};
+  const [total, items] = await Promise.all([prisma.emailChangeRequest.count({ where }), prisma.emailChangeRequest.findMany({ where, ...p, include: { user: pcSel } })]);
+  ok(res, items, pageMeta(total, p));
+});
+admin.post('/email-change-requests/:id/decision', requirePerm('admins:manage'), async (req, res) => {
+  const body = parse(z.object({ decision: z.enum(['APPROVE', 'REJECT']), identityVerified: z.boolean().optional(), note: z.string().trim().max(500).optional() }), req.body);
+  const adminId = req.actor!.kind === 'admin' ? req.actor!.adminId : null;
+  if (body.decision === 'APPROVE' && body.identityVerified !== true) throw fieldError({ identityVerified: 'Confirm you have verified the PC\'s identity' });
+  const r = await prisma.$transaction(async (tx) => {
+    const cur = await tx.emailChangeRequest.findUnique({ where: { id: String(req.params.id) } });
+    if (!cur) throw notFound('Request not found');
+    if (cur.status !== 'PENDING') throw conflict('This request has already been reviewed');
+    if (body.decision === 'APPROVE') {
+      const taken = await tx.user.findFirst({ where: { email: { equals: cur.newEmail, mode: 'insensitive' }, id: { not: cur.userId } }, select: { id: true } });
+      if (taken) throw conflict('That email is now registered to another account');
+      await tx.user.update({ where: { id: cur.userId }, data: { email: cur.newEmail } });
+    }
+    return tx.emailChangeRequest.update({ where: { id: cur.id }, data: { status: body.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED', decisionNote: body.note || null, reviewedById: adminId, reviewedAt: new Date() } });
+  });
+  await audit(req, { action: body.decision === 'APPROVE' ? 'EMAIL_CHANGE_APPROVED' : 'EMAIL_CHANGE_REJECTED', entityType: 'EMAIL_CHANGE_REQUEST', entityId: r.id, affectedPcId: r.userId, before: { email: r.currentEmail }, after: { email: body.decision === 'APPROVE' ? r.newEmail : r.currentEmail, identityVerified: body.identityVerified === true } });
+  await notify({ recipientId: r.userId, type: 'SYSTEM', title: body.decision === 'APPROVE' ? 'Email change approved' : 'Email change not approved', body: body.decision === 'APPROVE' ? `Your email is now ${r.newEmail}.` : (r.decisionNote || 'Your email change request was not approved.') });
+  ok(res, r);
 });
 
 /* ================= ACTIVITY / AUDIT (read-only) ================= */

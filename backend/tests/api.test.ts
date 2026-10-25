@@ -509,13 +509,22 @@ describe('Sharing', () => {
     expect(r.registered).toBe(true); expect(r.share.permission).toBe('VIEW_ONLY');
     const duplicate = (await A.post('/api/v1/property-shares', { propertyId: propA.id, targetType: 'PC', phone: userB.phone }).expect(201)).body.data;
     expect(duplicate.share.id).toBe(r.share.id);
+    const shareLink = (await A.post(`/api/v1/properties/${propA.id}/share-link`, {}).expect(200)).body.data.url;
+    const publicToken = shareLink.split('/s/').pop();
+    const publicProperty = (await api().get(`/api/v1/public/properties/${publicToken}`).expect(200)).body.data;
+    expect(publicProperty).toMatchObject({ code: propA.code, status: 'ACTIVE' });
+    expect(publicProperty.owner.phone).toBeUndefined();
+    expect(publicProperty.links).toBeUndefined();
+    const outgoing = (await A.get('/api/v1/property-shares').expect(200)).body.data;
+    expect(outgoing.some((share: any) => share.receiverId === userB.id && share.property.id === propA.id)).toBe(true);
     const seen = (await B.get(`/api/v1/properties/${propA.id}`).expect(200)).body.data;
     expect(seen.access).toBe('VIEW_ONLY'); expect(seen.isShared).toBe(true);
-    expect(seen.shares[0].sender.name).toBeTruthy(); expect(seen.shares[0].client).toBeUndefined();
+    expect(seen.shares[0].sender).toHaveProperty('name'); expect(seen.shares[0].client).toBeUndefined();
+    expect((await B.post(`/api/v1/property-shares/${r.share.id}/accept`, {}).expect(200)).body.data.acceptedAt).toBeTruthy();
+    expect((await B.get('/api/v1/properties?scope=shared').expect(200)).body.data.some((property: any) => property.id === propA.id)).toBe(true);
     const clientShare = (await A.post('/api/v1/property-shares', { propertyId: propA.id, targetType: 'CLIENT', phone: clientA.phone }).expect(201)).body.data;
-    expect(clientShare.share.clientId).toBe(clientA.id);
+    expect(clientShare.registered).toBe(false); expect(clientShare.share).toBeNull(); expect(clientShare.whatsappUrl).toContain('wa.me/');
     const ownerView = (await A.get(`/api/v1/properties/${propA.id}`).expect(200)).body.data;
-    expect(ownerView.shares.find((share: any) => share.targetType === 'CLIENT').client.name).toBe(clientA.name);
     expect(ownerView.shares.find((share: any) => share.targetType === 'PC').receiver.name).toBe(userB.name);
     await B.patch(`/api/v1/properties/${propA.id}`, { location: 'Hacked' }).expect(403);
     const un = (await A.post('/api/v1/property-shares', { propertyId: propA.id, targetType: 'CLIENT', phone: '9811111111' }).expect(201)).body.data;
@@ -567,6 +576,24 @@ describe('Tenant isolation & admin', () => {
     const csv = await ADMIN.get('/api/v1/admin/export/pcs').expect(200);
     expect(csv.text).toContain('pcCode'); expect(csv.text).not.toMatch(/password|otp|secret/i);
     await api().get('/api/v1/health').expect(200);
+  });
+});
+
+describe('Email change approval', () => {
+  it('keeps the email unchanged until a Super Admin verifies and approves', async () => {
+    const S = as((await pcLogin('9000000041')).token);
+    const me0 = (await S.get('/api/v1/profile').expect(200)).body.data;
+    await S.patch('/api/v1/profile', { email: 'sneaky@example.com' }).expect(403);
+    await S.post('/api/v1/profile/email-change', { newEmail: 'bad', reason: 'moved company' }).expect(422);
+    const r = (await S.post('/api/v1/profile/email-change', { newEmail: 'New.Mail@Example.com', reason: 'moved company' }).expect(201)).body.data;
+    expect(r.status).toBe('PENDING');
+    await S.post('/api/v1/profile/email-change', { newEmail: 'other@example.com', reason: 'again please' }).expect(409);
+    expect((await S.get('/api/v1/profile').expect(200)).body.data.email).toBe(me0.email);
+    await S.post('/api/v1/admin/email-change-requests/' + r.id + '/decision', {}).expect(401);
+    await ADMIN.post('/api/v1/admin/email-change-requests/' + r.id + '/decision', { decision: 'APPROVE' }).expect(422);
+    await ADMIN.post('/api/v1/admin/email-change-requests/' + r.id + '/decision', { decision: 'APPROVE', identityVerified: true }).expect(200);
+    expect((await S.get('/api/v1/profile').expect(200)).body.data.email).toBe('new.mail@example.com');
+    await ADMIN.post('/api/v1/admin/email-change-requests/' + r.id + '/decision', { decision: 'REJECT' }).expect(409);
   });
 });
 

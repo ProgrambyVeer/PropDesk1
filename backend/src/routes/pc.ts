@@ -130,11 +130,33 @@ const profileSchema = z.object({
 pc.get('/profile', async (req, res) => ok(res, userView(await prisma.user.findUniqueOrThrow({ where: { id: me(req) }, include: { profile: true } }))));
 pc.patch('/profile', async (req, res) => {
   const { name, email, ...profile } = parse(profileSchema, req.body);
+  if (email !== undefined) {
+    const current = await prisma.user.findUniqueOrThrow({ where: { id: me(req) }, select: { email: true } });
+    if ((email || null)?.toLowerCase() !== (current.email || null)?.toLowerCase()) throw forbidden('Email cannot be edited. Request an email change for admin approval.');
+  }
   const user = await prisma.user.update({
     where: { id: me(req) },
-    data: { name, email, profile: { upsert: { create: profile as any, update: profile as any } } }, include: { profile: true },
+    data: { name, profile: { upsert: { create: profile as any, update: profile as any } } }, include: { profile: true },
   });
   ok(res, userView(user));
+});
+const emailChangeSchema = z.object({
+  newEmail: z.string().trim().toLowerCase().email('Enter a valid email').max(200),
+  reason: z.string().trim().min(5, 'Please give a short reason').max(500),
+});
+pc.get('/profile/email-change', async (req, res) => ok(res, await prisma.emailChangeRequest.findFirst({ where: { userId: me(req) }, orderBy: { createdAt: 'desc' } })));
+pc.post('/profile/email-change', async (req, res) => {
+  const { newEmail, reason } = parse(emailChangeSchema, req.body);
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: me(req) }, select: { email: true, name: true, pcCode: true } });
+  if (user.email && user.email.toLowerCase() === newEmail) throw fieldError({ newEmail: 'This is already your email' });
+  if (await prisma.user.findFirst({ where: { email: { equals: newEmail, mode: 'insensitive' } }, select: { id: true } })) throw conflict('That email is already registered to another account');
+  if (await prisma.emailChangeRequest.findFirst({ where: { userId: me(req), status: 'PENDING' }, select: { id: true } })) throw conflict('You already have a pending email change request');
+  try {
+    ok(res, await prisma.emailChangeRequest.create({ data: { userId: me(req), currentEmail: user.email, newEmail, reason } }), undefined, 201);
+  } catch (e: any) {
+    if (e?.code === 'P2002') throw conflict('You already have a pending email change request');
+    throw e;
+  }
 });
 pc.post('/profile/photo', upload.single('photo') as any, async (req, res) => {
   const f = req.file;
@@ -267,7 +289,13 @@ pc.get('/properties/:id', async (req, res) => {
   if (!access) throw forbidden();
   if (access === 'VIEW_ONLY') {
     await prisma.propertyShare.updateMany({ where: { propertyId: prop.id, receiverId: me(req), status: 'SENT' }, data: { status: 'VIEWED' } });
-    return ok(res, { ...prop, links: [], deals: [], shares: prop.shares.filter((s) => s.receiverId === me(req)).map(({ client: _client, ...share }) => share), access, isShared: true });
+    const { id, code, title, category, subCategory, subtype, location, locality, facing, area, builtUpArea, carpetArea, plotArea, bhk, bathrooms, balcony, parking, floor, totalFloors, furnishing, propertyAge, amenities, dimLength, dimWidth, dimUnit, status, createdAt, photos, transactions } = prop;
+    return ok(res, {
+      id, code, title, category, subCategory, subtype, location, locality, facing, area, builtUpArea, carpetArea, plotArea, bhk, bathrooms, balcony, parking, floor, totalFloors, furnishing, propertyAge, amenities, dimLength, dimWidth, dimUnit, status, createdAt, photos, transactions,
+      owner: { name: prop.owner?.name }, links: [], deals: [],
+      shares: prop.shares.filter((s) => s.receiverId === me(req)).map(({ id: shareId, senderId, receiverId, status: shareStatus, channel, createdAt: sharedAt, acceptedAt, sender }) => ({ id: shareId, senderId, receiverId, status: shareStatus, channel, createdAt: sharedAt, acceptedAt, sender: { name: sender?.name } })),
+      access, isShared: true,
+    });
   }
   ok(res, { ...prop, access, isShared: prop.shares.length > 0 });
 });
@@ -275,13 +303,14 @@ pc.patch('/properties/:id', async (req, res) => ok(res, await R.updateProperty(r
 pc.delete('/properties/:id', async (req, res) => ok(res, await moveToBin(req.actor, 'PROPERTY', await loadOwned('property', req.params.id, req.actor), str(req.body?.reason))));
 pc.get('/properties/:id/analytics', async (req, res) => ok(res, await propertyAnalytics((await loadOwned<any>('property', req.params.id, req.actor)).id)));
 async function interestedBuyerCandidates(actor: any, propertyId: string) {
-  const property = await loadOwned<any>('property', propertyId, actor);
+  const property = await prisma.property.findFirst({ where: { OR: [{ id: propertyId }, { code: propertyId }], deletedAt: null } });
+  if (!property || !(await canViewProperty(actor, property))) throw notFound('Property');
   const offeringClientIds = new Set((await prisma.propertyClient.findMany({
     where: { propertyId: property.id, status: 'ACTIVE', requirement: { type: { in: ['SELL_OFFERING', 'RENT_OFFERING', 'LEASE_OFFERING'] }, status: 'ACTIVE', deletedAt: null } },
     select: { clientId: true },
   })).map((link) => link.clientId));
   return prisma.requirement.findMany({
-    where: { ownerId: property.ownerId, type: { in: ['BUY_LOOKING', 'RENT_LOOKING', 'LEASE_LOOKING'] }, status: 'ACTIVE', deletedAt: null, client: { deletedAt: null, id: { notIn: [...offeringClientIds] } } },
+    where: { ownerId: actor.userId, type: { in: ['BUY_LOOKING', 'RENT_LOOKING', 'LEASE_LOOKING'] }, status: 'ACTIVE', deletedAt: null, client: { deletedAt: null, id: { notIn: [...offeringClientIds] } } },
     select: { id: true, code: true, type: true, client: { select: { id: true, name: true, code: true } } },
     orderBy: { updatedAt: 'desc' },
   }).then((requirements) => requirements.map((requirement) => ({ client: requirement.client, requirement: { id: requirement.id, code: requirement.code, type: requirement.type } })));
@@ -289,7 +318,8 @@ async function interestedBuyerCandidates(actor: any, propertyId: string) {
 pc.get('/properties/:id/interested-buyer-candidates', async (req, res) => ok(res, await interestedBuyerCandidates(req.actor, req.params.id)));
 pc.post('/properties/:id/interested-buyers', async (req, res) => {
   const input = parse(z.object({ clientId: z.string().min(1), requirementId: z.string().min(1) }), req.body);
-  const property = await loadOwned<any>('property', req.params.id, req.actor);
+  const property = await prisma.property.findFirst({ where: { OR: [{ id: req.params.id }, { code: req.params.id }], deletedAt: null } });
+  if (!property || !(await canViewProperty(req.actor, property))) throw notFound('Property');
   const candidate = (await interestedBuyerCandidates(req.actor, property.id)).find((item) => item.client.id === input.clientId && item.requirement.id === input.requirementId);
   if (!candidate) throw badRequest('Select an active looking requirement from a client who does not offer this property');
   const existing = await prisma.propertyClient.findUnique({ where: { requirementId_propertyId: { requirementId: input.requirementId, propertyId: property.id } } });
@@ -337,9 +367,25 @@ pc.put('/properties/:id/transactions', async (req, res) => ok(res, await R.updat
 
 /* ================= SHARES ================= */
 pc.post('/property-shares', async (req, res) => ok(res, await R.shareProperty(req.actor, req.body), undefined, 201));
+pc.post('/properties/:id/share-link', async (req, res) => ok(res, await R.propertyShareLink(req.actor, req.params.id)));
+pc.post('/property-shares/:id/accept', async (req, res) => {
+  const share = await prisma.propertyShare.findFirst({ where: { id: req.params.id, receiverId: me(req), status: { not: 'REVOKED' } } });
+  if (!share) throw notFound('Property share');
+  ok(res, await prisma.propertyShare.update({ where: { id: share.id }, data: { acceptedAt: share.acceptedAt ?? new Date() } }));
+});
 pc.get('/property-shares', async (req, res) => {
-  const where = req.query.direction === 'received' ? { receiverId: me(req) } : { senderId: me(req) };
-  ok(res, await prisma.propertyShare.findMany({ where, orderBy: { createdAt: 'desc' }, take: 100, include: { property: { select: { id: true, code: true, location: true, subtype: true } }, sender: { select: { name: true, phone: true } }, receiver: { select: { name: true, phone: true } } } }));
+  const p = paging(req.query, ['createdAt']);
+  const receiving = req.query.direction === 'received';
+  const where: any = receiving ? { receiverId: me(req) } : { senderId: me(req), targetType: 'PC' };
+  if (str(req.query.shareStatus)) where.status = req.query.shareStatus;
+  if (str(req.query.propertyStatus)) where.property = { status: req.query.propertyStatus };
+  const q = str(req.query.q);
+  if (q) where.OR = [{ property: { code: ci(q) } }, { property: { title: ci(q) } }, { property: { location: ci(q) } }, { receiver: { name: ci(q) } }, { receiver: { phone: ci(q) } }];
+  const [total, shares] = await Promise.all([
+    prisma.propertyShare.count({ where }),
+    prisma.propertyShare.findMany({ where, ...p, orderBy: { createdAt: 'desc' }, include: { property: { select: { id: true, code: true, title: true, location: true, subtype: true, status: true } }, sender: { select: { name: true, phone: true } }, receiver: { select: { id: true, name: true, phone: true } } } }),
+  ]);
+  ok(res, shares, pageMeta(total, p));
 });
 
 /* ================= LINKS ================= */

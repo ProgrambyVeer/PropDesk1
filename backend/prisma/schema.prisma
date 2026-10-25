@@ -189,6 +189,7 @@ model User {
   statusChanges       PCStatusChange[]
   requirementRequests RequirementRequest[]
   supportTickets      SupportTicket[]
+  emailChangeRequests EmailChangeRequest[]
 
   @@index([status])
   @@index([createdAt])
@@ -419,6 +420,7 @@ model Property {
   id            String           @id @default(cuid())
   code          String           @unique
   ownerId       String
+  publicShareToken String?        @unique
   title         String?
   category      PropertyCategory
   subCategory   String?
@@ -638,6 +640,24 @@ model SupportTicket {
   @@index([status])
 }
 
+model EmailChangeRequest {
+  id            String   @id @default(cuid())
+  userId        String
+  currentEmail  String?
+  newEmail      String
+  reason        String
+  status        String   @default("PENDING")
+  decisionNote  String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
 model TicketMessage {
   id        String       @id @default(cuid())
   ticketId  String
@@ -691,6 +711,7 @@ model PropertyShare {
   channel       ShareChannel    @default(IN_APP)
   status        ShareStatus     @default(SENT)
   message       String?
+  acceptedAt    DateTime?
   createdAt     DateTime        @default(now())
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FilePenLine, LayoutDashboard, Plus, SlidersHorizontal } from 'lucide-react';
+import { Copy, FilePenLine, LayoutDashboard, Plus, SlidersHorizontal } from 'lucide-react';
+import { toast } from 'sonner';
 import { useDebounced, useFetch } from '../lib/hooks';
+import { post } from '../lib/api';
 import { AMOUNT_LABEL, CATEGORIES, date, human, inr, requirementLabel } from '../lib/format';
-import { Badge, Button, Card, Empty, ErrorState, Input, ListSkeleton, Select, Tabs } from '../components/ui';
+import { Badge, Button, Card, Empty, ErrorState, Input, ListSkeleton, Mono, Select, Tabs } from '../components/ui';
 import { PropertyCard } from '../components/domain';
 import { PropertiesMap } from '../components/maps';
 
@@ -13,13 +15,17 @@ export default function Properties() {
   const nav = useNavigate();
   const location = useLocation();
   const restored = (location.state as any)?.propertyListState;
-  const [scope, setScope] = useState<'mine' | 'inactive' | 'shared' | 'offers'>(restored?.scope || 'mine');
+  const [scope, setScope] = useState<'mine' | 'inactive' | 'shared' | 'sent' | 'offers'>(restored?.scope || 'mine');
   const [q, setQ] = useState(restored?.q || '');
   const [filters, setFilters] = useState<any>(restored?.filters || { category: '', kind: '', sort: 'createdAt', bhk: '', max: PRICE_STEPS.length - 1 });
   const [open, setOpen] = useState(!!restored?.open);
   const [view, setView] = useState<'list' | 'map'>(restored?.view || 'list');
+  const [sharePage, setSharePage] = useState(1);
+  const [shareStatus, setShareStatus] = useState('');
+  const [sharedPropertyStatus, setSharedPropertyStatus] = useState('');
   const dq = useDebounced(q);
-  const { data, meta, loading, error, reload } = useFetch<any[]>(scope === 'offers' ? null : '/properties', { scope, q: dq, category: filters.category, kind: filters.kind, sort: filters.sort, bhk: filters.bhk, maxPrice: filters.max < PRICE_STEPS.length - 1 ? PRICE_STEPS[filters.max] : '', pageSize: 50 });
+  const { data, meta, loading, error, reload } = useFetch<any[]>(scope === 'offers' || scope === 'sent' ? null : '/properties', { scope, q: dq, category: filters.category, kind: filters.kind, sort: filters.sort, bhk: filters.bhk, maxPrice: filters.max < PRICE_STEPS.length - 1 ? PRICE_STEPS[filters.max] : '', pageSize: 50 });
+  const sentShares = useFetch<any[]>(scope === 'sent' ? '/property-shares' : null, { direction: 'sent', q: dq, shareStatus, propertyStatus: sharedPropertyStatus, page: sharePage, pageSize: 30 });
   const offers = useFetch<any[]>(scope === 'offers' ? '/requirements' : null, { status: 'ACTIVE', pageSize: 100 });
   const offerLeads = useFetch<any[]>(scope === 'offers' ? '/property-client-links' : null, { pageSize: 100 });
   useEffect(() => {
@@ -35,15 +41,24 @@ export default function Properties() {
   }, [reload]);
   const clientOffers = (offers.data || []).filter((requirement) => requirement.type.endsWith('_OFFERING'));
   const set = (k: string) => (e: any) => setFilters({ ...filters, [k]: e.target.value });
+  const copyShareLink = async (propertyId: string) => {
+    try {
+      const { url } = await post<{ url: string }>(`/properties/${propertyId}/share-link`);
+      await navigator.clipboard.writeText(url);
+      toast.success('Property link copied');
+    } catch (e) { toast.error((e as Error).message || 'Could not copy the property link'); }
+  };
+  const outgoingShares = (sentShares.data || []).filter((share) => share.targetType === 'PC');
   return (
     <div className="space-y-5" data-testid="properties-page">
-      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-3"><div className="min-w-0"><h1 className="text-3xl font-extrabold tracking-tight">Properties</h1><p className="text-sm text-slate-500">{scope === 'offers' ? `${clientOffers.length} client offering${clientOffers.length === 1 ? '' : 's'}` : `${meta?.total ?? '…'} listings`}</p></div>
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-3"><div className="min-w-0"><h1 className="text-3xl font-extrabold tracking-tight">Properties</h1><p className="text-sm text-slate-500">{scope === 'offers' ? `${clientOffers.length} client offering${clientOffers.length === 1 ? '' : 's'}` : scope === 'sent' ? `${sentShares.meta?.total ?? '…'} consultant share${sentShares.meta?.total === 1 ? '' : 's'}` : `${meta?.total ?? '…'} listings`}</p></div>
         <div className="flex shrink-0 items-center gap-2"><Button variant="secondary" onClick={() => nav('/drafts?kind=property')} data-testid="property-drafts-btn"><FilePenLine className="h-4 w-4" />Drafts</Button><Button onClick={() => nav('/properties/new')} data-testid="add-property-btn"><Plus className="h-4 w-4" />Add Property</Button></div></div>
-      <Tabs tabs={[{ id: 'mine', label: 'My Active Properties' }, { id: 'inactive', label: 'Inactive Properties' }, { id: 'shared', label: 'Shared with me' }, { id: 'offers', label: 'Client Offerings' }]} value={scope} onChange={setScope} testid="properties-scope" />
-      {scope !== 'offers' && <Tabs tabs={[{ id: 'list', label: 'List View' }, { id: 'map', label: 'Map View' }]} value={view} onChange={setView} testid="properties-view" />}
-      <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by ID, location, type" className="min-w-0 flex-1" data-testid="properties-search-input" />
-        <Button variant="secondary" className="shrink-0" onClick={() => setOpen(!open)} data-testid="properties-filter-btn" aria-label="Filters"><SlidersHorizontal className="h-4 w-4" /></Button></div>
-      {open && (
+      <Tabs tabs={[{ id: 'mine', label: 'My Active Properties' }, { id: 'inactive', label: 'Inactive Properties' }, { id: 'shared', label: 'Shared with me' }, { id: 'sent', label: 'Shared by Me' }, { id: 'offers', label: 'Client Offerings' }]} value={scope} onChange={(v) => { setScope(v as typeof scope); setSharePage(1); }} testid="properties-scope" />
+      {scope !== 'offers' && scope !== 'sent' && <Tabs tabs={[{ id: 'list', label: 'List View' }, { id: 'map', label: 'Map View' }]} value={view} onChange={setView} testid="properties-view" />}
+      <div className="flex gap-2"><Input value={q} onChange={(e) => { setQ(e.target.value); setSharePage(1); }} placeholder={scope === 'sent' ? 'Search property or consultant' : 'Search by ID, location, type'} className="min-w-0 flex-1" data-testid="properties-search-input" />
+        {scope !== 'sent' && <Button variant="secondary" className="shrink-0" onClick={() => setOpen(!open)} data-testid="properties-filter-btn" aria-label="Filters"><SlidersHorizontal className="h-4 w-4" /></Button>}</div>
+      {scope === 'sent' && <div className="grid gap-2 sm:grid-cols-2"><Select value={shareStatus} onChange={(e) => { setShareStatus(e.target.value); setSharePage(1); }} aria-label="Sharing status"><option value="">All sharing statuses</option>{['SENT', 'VIEWED', 'REVOKED'].map((status) => <option key={status} value={status}>{human(status)}</option>)}</Select><Select value={sharedPropertyStatus} onChange={(e) => { setSharedPropertyStatus(e.target.value); setSharePage(1); }} aria-label="Property status"><option value="">All property statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></Select></div>}
+      {open && scope !== 'sent' && (
         <div className="grid animate-up gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="properties-filters">
           <Select value={filters.category} onChange={set('category')} data-testid="filter-category"><option value="">All categories</option>{CATEGORIES.map((c) => <option key={c} value={c}>{human(c)}</option>)}</Select>
           <Select value={filters.kind} onChange={set('kind')} data-testid="filter-kind"><option value="">Sale, Rent & Lease</option><option value="SALE">Sale</option><option value="RENT">Rent</option><option value="LEASE">Lease</option></Select>
@@ -53,7 +68,19 @@ export default function Properties() {
             <input type="range" min={0} max={PRICE_STEPS.length - 1} value={filters.max} onChange={(e) => setFilters({ ...filters, max: Number(e.target.value) })} className="mt-2 w-full accent-navy" data-testid="filter-price-slider" /></label>
         </div>
       )}
-      {scope === 'offers'
+      {scope === 'sent'
+        ? sentShares.error ? <ErrorState message={sentShares.error} retry={sentShares.reload} /> : sentShares.loading && !sentShares.data ? <ListSkeleton /> : !outgoingShares.length ? <Empty title="No consultant shares yet" text="Properties you share with other consultants will appear here." /> :
+          <div className="space-y-3"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{outgoingShares.map((share) => <Card key={share.id} className="space-y-3 p-4" data-testid={`shared-by-me-${share.id}`}>
+            <Link to={`/properties/${share.property.id}`} className="block">
+              <div className="flex items-start justify-between gap-2"><div><Mono>{share.property.code}</Mono><p className="mt-1 font-semibold">{share.property.title || share.property.subtype}</p><p className="text-xs text-slate-500">{share.property.location}</p></div><Badge tone={share.property.status === 'ACTIVE' ? 'green' : 'slate'}>{human(share.property.status)}</Badge></div>
+            </Link>
+            <p className="text-sm">Shared with <b>{share.receiver?.name || share.receiver?.phone || 'Consultant'}</b></p>
+            <p className="text-xs text-slate-500">{human(share.channel)} · {human(share.status)} · {date(share.createdAt)}</p>
+            <div className="flex gap-2"><Button size="sm" variant="secondary" className="flex-1" onClick={() => nav(`/properties/${share.property.id}`)}>View Property</Button><Button size="sm" variant="secondary" onClick={() => copyShareLink(share.property.id)} aria-label="Copy property link"><Copy className="h-4 w-4" /></Button></div>
+          </Card>)}</div>
+          {sentShares.meta?.totalPages > 1 && <div className="flex items-center justify-center gap-3"><Button variant="secondary" size="sm" disabled={sharePage <= 1} onClick={() => setSharePage(sharePage - 1)}>Previous</Button><span className="text-xs text-slate-500">Page {sharePage} of {sentShares.meta.totalPages}</span><Button variant="secondary" size="sm" disabled={sharePage >= sentShares.meta.totalPages} onClick={() => setSharePage(sharePage + 1)}>Next</Button></div>}
+          </div>
+        : scope === 'offers'
         ? offers.error ? <ErrorState message={offers.error} retry={offers.reload} /> : offers.loading && !offers.data ? <ListSkeleton /> : !clientOffers.length ? <Empty title="No active client offerings" text="Client sale, rent, and lease offers remain associated with their requirements; they are not converted into owned properties." /> :
           <div className="grid gap-3 sm:grid-cols-2">{clientOffers.map((offer) => {
             const associated = (offerLeads.data || []).filter((lead) => lead.requirementId === offer.id);

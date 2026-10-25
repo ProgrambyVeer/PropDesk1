@@ -288,6 +288,31 @@ export function SearchPage() {
 }
 
 const TICKET_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+export function EmailRequests() {
+  const { can } = useAdmin();
+  const { data, reload, error } = useFetch<any[]>(can('admins:manage') ? '/email-change-requests' : null, { status: 'PENDING', pageSize: 50 });
+  const [busy, setBusy] = useState('');
+  const [verified, setVerified] = useState<Record<string, boolean>>({});
+  if (!can('admins:manage')) return <p className="text-slate-500">Only a Super Admin can review email change requests.</p>;
+  const decide = async (id: string, decision: 'APPROVE' | 'REJECT') => {
+    setBusy(id);
+    try { await post(`/email-change-requests/${id}/decision`, { decision, identityVerified: !!verified[id] }); toast.success(decision === 'APPROVE' ? 'Email updated' : 'Request rejected'); reload(); } catch (e) { toast.error((e as Error).message); } finally { setBusy(''); }
+  };
+  return (
+    <div className="space-y-4">
+      <H title="Email Change Requests" sub="Pending requests from property consultants" />
+      {error && <p className="text-red-600">{error}</p>}
+      {!data ? <p className="text-slate-400">Loading…</p> : !data.length ? <p className="text-sm text-slate-400" data-testid="email-requests-empty">No pending requests.</p> : data.map((r) => (
+        <Panel key={r.id} title={`${r.user?.name || 'PC'} · ${r.user?.pcCode || ''}`}>
+          <p className="text-sm">{r.currentEmail || 'No email'} → <b>{r.newEmail}</b></p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-500">{r.reason}</p>
+          <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={!!verified[r.id]} onChange={(e) => setVerified({ ...verified, [r.id]: e.target.checked })} /> I have verified this PC's identity</label>
+          <div className="mt-3 flex gap-2"><Btn onClick={() => decide(r.id, 'APPROVE')} disabled={!verified[r.id] || busy === r.id}>Approve</Btn><Btn variant="secondary" onClick={() => decide(r.id, 'REJECT')} disabled={busy === r.id}>Reject</Btn></div>
+        </Panel>
+      ))}
+    </div>
+  );
+}
 export const Tickets = () => <ListPage title="Support Tickets" path="/tickets" detail={D('tickets')} filters={[{ k: 'status', label: 'Status', opts: TICKET_STATUSES }]}
   cols={[{ h: 'Ticket ID', r: (x) => <Code>{x.code}</Code> }, { h: 'Subject', r: (x) => <b>{x.summary}</b> }, { h: 'Category', r: (x) => x.category }, { h: 'PC', r: (x) => <PcCell o={x.pc} /> }, { h: 'Created', r: (x) => dt(x.createdAt) }, { h: 'Status', r: (x) => <Pill v={x.status} /> }]} />;
 

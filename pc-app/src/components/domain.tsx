@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Building2, MapPin, Ruler, Share2, Pencil, Trash2, Eye, MessageCircle, Plus, X, LayoutDashboard } from 'lucide-react';
+import { Building2, MapPin, Ruler, Share2, Pencil, Trash2, Eye, MessageCircle, Plus, X, LayoutDashboard, Copy } from 'lucide-react';
 import { ApiError, del, fileUrl, get, patch, post } from '../lib/api';
 import { useAction, useDebounced, useFetch } from '../lib/hooks';
 import { ago, dims, human, inr, requirementLabel, toLocalInput, txLabel, FU_TYPES, STAGE_TONE } from '../lib/format';
@@ -100,6 +100,7 @@ export function ShareSheet({ open, onClose, property, onDone }: { open: boolean;
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
   const [result, setResult] = useState<any>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
   const { busy, errors, run } = useAction();
   useEffect(() => { if (open) { setResult(null); setPhone(''); } }, [open]);
   const submit = (channel: 'IN_APP' | 'WHATSAPP') => run(async () => {
@@ -111,12 +112,21 @@ export function ShareSheet({ open, onClose, property, onDone }: { open: boolean;
       onDone?.(); if (channel === 'IN_APP') onClose();
     }
   }).catch((e) => !(e as ApiError).fieldErrors?.phone && toast.error((e as Error).message));
+  const copyLink = async () => {
+    setLinkBusy(true);
+    try {
+      const { url } = await post<{ url: string }>(`/properties/${property.id}/share-link`);
+      await navigator.clipboard.writeText(url);
+      toast.success('Property link copied');
+    } catch (e) { toast.error((e as Error).message || 'Could not copy the property link'); } finally { setLinkBusy(false); }
+  };
   return (
     <Sheet open={open} onClose={onClose} title={`Share ${property.code}`} testid="share-sheet"
       footer={result && !result.registered ? <Button variant="success" className="w-full" onClick={() => submit('WHATSAPP')} loading={busy} data-testid="share-whatsapp-btn"><MessageCircle className="h-4 w-4" />Share via WhatsApp</Button>
         : <Button className="w-full" onClick={() => submit('IN_APP')} loading={busy} data-testid="share-submit-btn">Share</Button>}>
       <div className="space-y-4">
         <Chips options={['CLIENT', 'PC'] as const} value={target} onChange={(v) => { setTarget(v); setResult(null); }} label={(v) => (v === 'CLIENT' ? 'Share with Client' : 'Share with Property Consultant')} testid="share-target" />
+        <Button variant="secondary" className="w-full" onClick={copyLink} loading={linkBusy} data-testid="share-copy-link-btn"><Copy className="h-4 w-4" />Copy Property Link</Button>
         <Field label="Phone Number" required error={errors.phone}>
           <Input value={phone} onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setResult(null); }} placeholder="10-digit mobile" inputMode="numeric" data-testid="share-phone-input" invalid={!!errors.phone} />
         </Field>

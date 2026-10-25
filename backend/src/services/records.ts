@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { randomBytes } from 'node:crypto';
 import { FollowUpType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { badRequest, conflict, fieldError, forbidden, inr, isIndianMobile, normalizePhone, parse } from '../lib/http';
@@ -383,10 +384,21 @@ export async function shareProperty(actor: Actor, body: unknown) {
   if (channel === 'IN_APP' && receiver) {
     await notify({ recipientId: receiver.id, type: 'PROPERTY_SHARED', title: `${sender.name || 'A consultant'} shared ${property.code}`, body: `${property.subtype} · ${property.location} (view only)`, propertyId: property.id, link: `/properties/${property.id}` });
   }
+
   await logActivity(actor, {
     entityType: 'PROPERTY', entityId: property.id, entityCode: property.code, ownerId: actor.userId, propertyId: property.id, clientId: client?.id ?? null, action: 'PROPERTY_SHARED',
     description: `${property.code} shared with ${input.targetType === 'PC' ? 'consultant' : 'client'} ${receiver?.name || client?.name || ''} +91 ${input.phone} via ${channel === 'IN_APP' ? 'in-app' : 'WhatsApp'}`,
     metadata: { shareId: share.id, permission: share.permission, channel, receiverId: share.receiverId },
   });
   return { registered: !!receiver, share, whatsappUrl: waUrl, message: receiver ? `Shared with ${receiver.name || 'consultant'} in-app` : 'Shared via WhatsApp' };
+}
+
+export async function propertyShareLink(actor: Actor, id: string) {
+  if (actor.kind !== 'pc') throw forbidden();
+  const property = await loadOwned<any>('property', id, actor);
+  if (!property.publicShareToken) {
+    await prisma.property.updateMany({ where: { id: property.id, publicShareToken: null }, data: { publicShareToken: randomBytes(32).toString('base64url') } });
+  }
+  const saved = await prisma.property.findUniqueOrThrow({ where: { id: property.id }, select: { publicShareToken: true } });
+  return { url: `${config.pcAppUrl.replace(/\/$/, '')}/s/${saved.publicShareToken}` };
 }

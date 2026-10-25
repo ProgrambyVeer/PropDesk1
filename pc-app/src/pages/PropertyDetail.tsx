@@ -16,8 +16,8 @@ export default function PropertyDetail({ commandCenter = false }: { commandCente
   const { data: p, loading, error, reload } = useFetch<any>(`/properties/${id}`);
   const owner = p?.access === 'OWNER';
   const an = useFetch<any>(owner ? `/properties/${id}/analytics` : null);
-  const interestedCandidates = useFetch<any[]>(owner && commandCenter ? `/properties/${id}/interested-buyer-candidates` : null);
-  const followUps = useFetch<any[]>(owner && commandCenter ? '/follow-ups' : null, { propertyId: id, pageSize: 100 });
+  const interestedCandidates = useFetch<any[]>(commandCenter || p?.access === 'VIEW_ONLY' ? `/properties/${id}/interested-buyer-candidates` : null);
+  const followUps = useFetch<any[]>(commandCenter || p?.access === 'VIEW_ONLY' ? '/follow-ups' : null, { propertyId: id, pageSize: 100 });
   const [tab, setTab] = useState<'overview' | 'clients' | 'analytics' | 'activity'>('overview');
   const [share, setShare] = useState(false); const [photo, setPhoto] = useState(0); const [followUpForm, setFollowUpForm] = useState<any>(null); const [interestedForm, setInterestedForm] = useState(false); const [interestedClientId, setInterestedClientId] = useState(''); const [interestedRequirementId, setInterestedRequirementId] = useState(''); const [interestedBusy, setInterestedBusy] = useState(false);
   if (error) return <ErrorState message={error} />;
@@ -36,6 +36,12 @@ export default function PropertyDetail({ commandCenter = false }: { commandCente
       await post(`/properties/${p.id}/interested-buyers`, { clientId: interestedClientId, requirementId: interestedRequirementId });
       toast.success('Interested buyer added'); setInterestedForm(false); setInterestedClientId(''); setInterestedRequirementId(''); reload(); an.reload(); interestedCandidates.reload();
     } catch (e) { toast.error((e as Error).message); } finally { setInterestedBusy(false); }
+  };
+  const acceptSharedProperty = async () => {
+    const share = p.shares?.[0];
+    if (!share) { toast.error('This property share is no longer available'); return; }
+    try { await post(`/property-shares/${share.id}/accept`, {}); toast.success('Property added to your shared workspace'); reload(); }
+    catch (e) { toast.error((e as Error).message); }
   };
   const back = () => {
     const state = location.state as any;
@@ -96,15 +102,27 @@ export default function PropertyDetail({ commandCenter = false }: { commandCente
           {a?.timeline?.length ? <Card className="divide-y divide-slate-100">{a.timeline.slice(0, 10).map((item: any) => <ActivityRow key={item.id} item={item} propertyId={p.id} />)}</Card> : <Empty title="No recent activity" />}
         </Section>
       </div>}
-      {commandCenter && !owner && <Section title="Property Command Center" className="animate-up" >
-        <Card className="divide-y divide-slate-100 px-5 py-2" data-testid="shared-property-command-center">
+      {!owner && <div className="space-y-5 animate-up" data-testid="shared-property-workspace">
+        <Card className="space-y-3 p-4" data-testid="shared-property-command-center">
           <KV k="Shared by" v={p.owner?.name || 'Property Consultant'} />
           <KV k="Property" v={`${human(p.category)} · ${p.subCategory ? `${p.subCategory} · ` : ''}${p.subtype}`} />
           <KV k="Location" v={p.location} />
-          {p.transactions.map((transaction: any) => <KV key={transaction.id} k={human(transaction.kind)} v={txLabel(transaction)} />)}
-          <p className="py-3 text-xs text-slate-500">This is a view-only share. Buyer leads, deals, follow-ups and activity remain private to the property owner.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={acceptSharedProperty} disabled={!!p.shares?.[0]?.acceptedAt} data-testid="shared-property-accept-btn">{p.shares?.[0]?.acceptedAt ? 'Added to My Properties' : 'Add to My Properties'}</Button>
+            <Button size="sm" onClick={() => interestedCandidates.data?.length ? document.getElementById('shared-matching-clients')?.scrollIntoView({ behavior: 'smooth' }) : toast.info('No matching clients found yet')} data-testid="shared-property-find-clients-btn">Find Matching Clients</Button>
+          </div>
+          <p className="text-xs text-slate-500">Your clients, follow-ups and deals remain private to your workspace.</p>
         </Card>
-      </Section>}
+        <Section title={`Matching Clients · ${interestedCandidates.data?.length || 0}`} >
+          {interestedCandidates.loading ? <ListSkeleton n={2} /> : interestedCandidates.data?.length ? <div id="shared-matching-clients" className="grid gap-3 md:grid-cols-2">{interestedCandidates.data.map((item: any) => <Card key={item.requirement.id} className="flex items-center justify-between gap-3 p-4"><div className="min-w-0"><Link to={`/clients/${item.client.id}`} className="font-semibold hover:text-brand">{item.client.name}</Link><p className="text-xs text-slate-500">{requirementLabel(item.requirement.type, item.requirement.code)}</p></div><Button size="sm" variant="secondary" onClick={() => { setInterestedClientId(item.client.id); setInterestedRequirementId(item.requirement.id); setInterestedForm(true); }}>Add</Button></Card>)}</div> : <Empty title="No matching clients yet" text="Add a looking requirement for one of your clients to match this shared property." />}
+        </Section>
+        <Section title="Site Visits" action={<Button size="sm" variant="secondary" onClick={() => setFollowUpForm({ propertyId: p.id, type: 'SITE_VISIT' })}><Plus className="h-4 w-4" />Schedule</Button>}>
+          <FollowUpList rows={(followUps.data || []).filter((item: any) => item.type === 'SITE_VISIT')} loading={followUps.loading} onEdit={setFollowUpForm} onComplete={completeFollowUp} onCancel={cancelFollowUp} onDelete={deleteFollowUp} />
+        </Section>
+        <Section title="Follow-ups" action={<Button size="sm" variant="secondary" onClick={() => setFollowUpForm({ propertyId: p.id })}><Plus className="h-4 w-4" />Add</Button>}>
+          <FollowUpList rows={(followUps.data || []).filter((item: any) => item.type !== 'SITE_VISIT')} loading={followUps.loading} onEdit={setFollowUpForm} onComplete={completeFollowUp} onCancel={cancelFollowUp} onDelete={deleteFollowUp} />
+        </Section>
+      </div>}
       {owner && <Tabs tabs={[{ id: 'overview', label: 'Overview' }, { id: 'clients', label: 'Leads & Deals', count: p.links.length }, { id: 'analytics', label: 'Analytics' }, { id: 'activity', label: 'Activity' }]} value={tab} onChange={setTab} testid="property-tab" />}
       {tab === 'overview' && <div className="grid gap-6 lg:grid-cols-2">
         <Card className="divide-y divide-slate-100 px-5 py-2">

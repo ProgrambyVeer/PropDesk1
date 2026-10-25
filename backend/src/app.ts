@@ -30,6 +30,20 @@ export function createApp() {
   });
   v1.use('/uploads', express.static(uploadRoot, { maxAge: '7d', index: false, dotfiles: 'deny' }));
   v1.use(globalLimiter);
+  v1.get('/public/properties/:token', async (req, res) => {
+    const property = await prisma.property.findFirst({
+      where: { publicShareToken: req.params.token, deletedAt: null },
+      select: {
+        code: true, title: true, category: true, subCategory: true, subtype: true, location: true, locality: true,
+        area: true, bhk: true, bathrooms: true, amenities: true, status: true,
+        owner: { select: { name: true } },
+        photos: { orderBy: { position: 'asc' }, select: { url: true }, take: 8 },
+        transactions: { where: { status: 'ACTIVE' }, select: { kind: true, salePrice: true, rentAmount: true, leaseAmount: true, depositAmount: true, availableDate: true, leasePeriodMonths: true } },
+      },
+    });
+    if (!property) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Shared property not found' } });
+    res.json({ success: true, data: property });
+  });
   v1.use('/admin', admin);
   v1.use('/', pc);
 

@@ -21,11 +21,14 @@ import Analytics from './pages/Analytics';
 import Profile from './pages/Profile';
 import Drafts from './pages/Drafts';
 import PublicRequirement from './pages/PublicRequirement';
+import PublicSharedProperty from './pages/PublicSharedProperty';
 
 export default function App() {
   const { user } = useAuth();
   const publicRequirement = useMatch('/r/:token');
   if (publicRequirement) return <Routes><Route path="/r/:token" element={<PublicRequirement />} /></Routes>;
+  const publicProperty = useMatch('/s/:token');
+  if (publicProperty) return <Routes><Route path="/s/:token" element={<PublicSharedProperty />} /></Routes>;
   if (user === null) return <div className="mx-auto max-w-md space-y-3 p-6"><Skeleton className="h-10" /><Skeleton className="h-32" /><Skeleton className="h-32" /></div>;
   if (!user && window.location.pathname === '/') { window.location.replace('/welcome.html'); return null; }
   if (!user) return <Routes><Route path="*" element={<Login />} /></Routes>;
