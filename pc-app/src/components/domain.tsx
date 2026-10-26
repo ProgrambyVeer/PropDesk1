@@ -302,7 +302,7 @@ export function LocalitySelect({ value, onChange, testid, invalid, exclude = [],
   );
   return <div className="relative">
     <Input value={query} onFocus={() => setOpen(true)} onChange={(event) => { const next = event.target.value; setQuery(next); setOpen(true); if (next !== value) onChange(''); }} placeholder="Search Bengaluru localities" data-testid={testid} invalid={invalid} role="combobox" aria-expanded={open} aria-autocomplete="list" />
-    {open && filtered.length > 0 && <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lift" role="listbox">{filtered.map((option) => <button type="button" key={option.id} role="option" onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(option.area); setQuery(clearAfterSelect ? '' : option.area); setOpen(false); }} className="flex w-full justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"><span>{option.area}</span><span className="text-xs text-slate-400">{option.city}</span></button>)}</div>}
+    {open && filtered.length > 0 && <div className="absolute inset-x-0 top-full z-40 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lift" role="listbox">{filtered.map((option) => <button type="button" key={option.id} role="option" onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(option.area); setQuery(clearAfterSelect ? '' : option.area); setOpen(false); }} className="flex w-full justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"><span>{option.area}</span><span className="text-xs text-slate-400">{option.city}</span></button>)}</div>}
   </div>;
 }
 
