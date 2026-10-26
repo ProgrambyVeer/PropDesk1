@@ -162,7 +162,7 @@ export default function PublicRequirement() {
     <Card className="space-y-4 p-5">
       <h2 className="font-bold">Your details</h2>
       <Field label="Full name" required error={errors.name}><Input value={client.name} onChange={(e) => setClient({ ...client, name: e.target.value })} placeholder="Rahul Sharma" autoComplete="name" invalid={!!errors.name} data-testid="pub-client-name" /></Field>
-      <Field label="Phone number" required error={errors.phone}><div className="flex gap-2"><Input ref={phoneRef} value={client.phone} onChange={(e) => setClient({ ...client, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" invalid={!!errors.phone} data-testid="pub-client-phone" /><ContactPickButton focusRef={phoneRef} onPick={(c) => setClient((x) => ({ name: x.name || c.name, phone: c.phone || x.phone }))} testid="pub-contact-pick-btn" /></div></Field>
+      <Field label="Phone number" required error={errors.phone}><div className="flex gap-2 gap-fb"><Input ref={phoneRef} value={client.phone} onChange={(e) => setClient({ ...client, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" invalid={!!errors.phone} data-testid="pub-client-phone" /><ContactPickButton focusRef={phoneRef} onPick={(c) => setClient((x) => ({ name: x.name || c.name, phone: c.phone || x.phone }))} testid="pub-contact-pick-btn" /></div></Field>
     </Card>
     <div className="space-y-3">
       <h2 className="font-bold">Requirements ({items.length})</h2>

@@ -275,7 +275,7 @@ export function ClientSheet({ open, onClose, initial, onSaved }: { open: boolean
     <Sheet open={open} onClose={onClose} title={initial?.id ? 'Edit Client' : 'Add Client'} testid="client-sheet" footer={<><Button variant="secondary" onClick={onClose} className="flex-1">Cancel</Button><Button className="flex-1" onClick={submit} loading={busy} data-testid="client-save-btn">Save</Button></>}>
       <div className="space-y-4">
         <Field label="Name" required error={errors.name}><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Rahul Sharma" data-testid="client-name-input" invalid={!!errors.name} /></Field>
-        <Field label="Phone Number" required error={errors.phone}><div className="flex gap-2"><Input ref={phoneRef} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="numeric" placeholder="98765 43210" data-testid="client-phone-input" invalid={!!errors.phone} /><ContactPickButton focusRef={phoneRef} onPick={(c) => setF((x: any) => ({ ...x, phone: c.phone || x.phone, name: x.name || c.name }))} /></div></Field>
+        <Field label="Phone Number" required error={errors.phone}><div className="flex gap-2 gap-fb"><Input ref={phoneRef} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="numeric" placeholder="98765 43210" data-testid="client-phone-input" invalid={!!errors.phone} /><ContactPickButton focusRef={phoneRef} onPick={(c) => setF((x: any) => ({ ...x, phone: c.phone || x.phone, name: x.name || c.name }))} /></div></Field>
         <Field label="Location" required error={errors.location}><LocalitySelect value={f.location} onChange={(v) => setF({ ...f, location: v })} testid="client-location-input" invalid={!!errors.location} /></Field>
         <Field label="Gmail / Email" error={errors.email}><Input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="name@gmail.com" data-testid="client-email-input" /></Field>
         <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={f.isHot} onChange={(e) => setF({ ...f, isHot: e.target.checked })} data-testid="client-hot-checkbox" className="h-4 w-4 accent-red-500" />Mark as hot client</label>
@@ -316,7 +316,7 @@ export function LocalityMultiSelect({ values, onChange, testid, invalid }: { val
     setResetKey((k) => k + 1);
   };
   return <div className="space-y-2">
-    {values.length > 0 && <div className="flex flex-wrap gap-2">{values.map((value) => <span key={value.toLowerCase()} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold" data-testid={`${testid}-selected-${value.toLowerCase().replace(/\W+/g, '-')}`}>{value}<button type="button" onClick={() => onChange(values.filter((item) => item !== value))} aria-label={`Remove ${value}`} className="text-slate-500 hover:text-red-600"><X className="h-3.5 w-3.5" /></button></span>)}</div>}
+    {values.length > 0 && <div className="flex flex-wrap gap-2 gap-fb">{values.map((value) => <span key={value.toLowerCase()} className="inline-flex items-center gap-1 gap-fb-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold" data-testid={`${testid}-selected-${value.toLowerCase().replace(/\W+/g, '-')}`}>{value}<button type="button" onClick={() => onChange(values.filter((item) => item !== value))} aria-label={`Remove ${value}`} className="text-slate-500 hover:text-red-600"><X className="h-3.5 w-3.5" /></button></span>)}</div>}
     <LocalitySelect key={resetKey} value="" onChange={choose} testid={testid} invalid={invalid && values.length === 0} exclude={values} clearAfterSelect />
     {values.length > 0 && <p className="text-xs text-slate-500">Search above to add another locality.</p>}
   </div>;
@@ -343,8 +343,8 @@ export const Stat = ({ label, value, testid, accent, to, art, bar }: { label: st
   const card = (
     <div className={`relative h-full overflow-hidden rounded-2xl p-4 ${accent ? 'bg-navy text-white' : 'border border-slate-200/80 bg-white shadow-card'} ${to ? 'transition-shadow hover:shadow-lift' : ''}`} data-testid={testid}>
       {art && <>
-        <img src={`/dash/${art}-light.png`} alt="" aria-hidden="true" loading="lazy" draggable={false} className="pointer-events-none absolute -bottom-1.5 right-2 h-14 w-auto max-w-[46%] select-none object-contain object-bottom dark:hidden sm:h-20" />
-        <img src={`/dash/${art}-dark.png`} alt="" aria-hidden="true" loading="lazy" draggable={false} className="pointer-events-none absolute -bottom-1.5 right-2 hidden h-14 w-auto max-w-[46%] select-none object-contain object-bottom dark:block sm:h-20" />
+        <img src={`/dash/${art}-light.png`} alt="" aria-hidden="true" loading="lazy" draggable={false} className="pointer-events-none absolute -bottom-1.5 right-2 h-14 w-auto max-w-[46%]         select-none object-contain object-bottom theme-light-only sm:h-20" />
+                <img src={`/dash/${art}-dark.png`} alt="" aria-hidden="true" loading="lazy" draggable={false} className="pointer-events-none absolute -bottom-1.5 right-2 h-14 w-auto max-w-[46%] select-none object-contain object-bottom theme-dark-only sm:h-20" />
       </>}
       <p className={`relative flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider ${accent ? 'text-blue-200' : 'text-slate-500'}`}>{bar && <span aria-hidden="true" className="h-4 w-1 shrink-0 rounded-full" style={{ background: bar }} />}<span>{label}</span></p>
       <p className="relative mt-1.5 text-2xl font-extrabold tracking-tight">{value}</p>

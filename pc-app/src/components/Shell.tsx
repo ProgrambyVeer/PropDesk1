@@ -111,7 +111,7 @@ export default function Shell() {
 export const Logo = ({ shifted = false, className = 'w-44' }: { shifted?: boolean; className?: string }) => (
   <div className={clsx('flex max-w-full min-w-0 items-center', className)}>
     {/* The cropped logo has no built-in whitespace, so the old -13% offset is no longer applied (`shifted` is kept for callers). */}
-    <img src={`${import.meta.env.BASE_URL}logo-black.png`} alt="EstateOS Professional" className="block h-auto w-full max-w-full object-contain dark:hidden" />
-    <img src={`${import.meta.env.BASE_URL}logo-white.png`} alt="EstateOS Professional" className="hidden h-auto w-full max-w-full object-contain dark:block" />
+    <img src={`${import.meta.env.BASE_URL}logo-black.png`} alt="EstateOS Professional"     className="block h-auto w-full max-w-full object-contain theme-light-only" />
+        <img src={`${import.meta.env.BASE_URL}logo-white.png`} alt="EstateOS Professional" className="h-auto w-full max-w-full object-contain theme-dark-only" />
   </div>
 );

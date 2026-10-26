@@ -16,6 +16,24 @@ input[type='date'], input[type='datetime-local'] { min-height: 44px; }
   .min-h-screen { min-height: 100dvh; }
 }
 
+/* Light/dark image swap without Tailwind's :is(.dark *) variants (unsupported before Safari 14). */
+.theme-dark-only { display: none; }
+.dark .theme-dark-only { display: block; }
+.dark .theme-light-only { display: none; }
+
+/* iOS 13 fallbacks: aspect-ratio (Safari 15+) via padding, and flex gap (Safari 14.1+) via margins when index.html flags `no-flex-gap`. */
+@supports not (aspect-ratio: 1) {
+  .aspect-square, .aspect-\[16\/9\] { position: relative; height: 0; }
+  .aspect-square { padding-top: 100%; }
+  .aspect-\[16\/9\] { padding-top: 56.25%; }
+  .aspect-square > .h-full, .aspect-\[16\/9\] > .h-full { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+}
+.no-flex-gap .gap-fb > * + * { margin-left: 0.5rem; }
+.no-flex-gap .gap-fb-3 > * + * { margin-left: 0.75rem; }
+/* Text nodes are not matched by `* + *`, so spacing next to an icon is applied to the icon / button itself. */
+.no-flex-gap .gap-fb-icon > svg:not(:only-child) { margin-right: 0.5rem; }
+.no-flex-gap .gap-fb-1 > button { margin-left: 0.25rem; }
+
 
 /* Dark theme: remaps the existing light utility classes to shared obsidian/charcoal tokens. */
 :root { --bg: #FAFAFA; --surface: #FFFFFF; --surface-2: #F4F4F5; --line: #E4E4E7; --text: #09090B; --muted: #71717A; }

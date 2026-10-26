@@ -32,7 +32,7 @@ export function RequestRequirementSheet({ open, onClose }: { open: boolean; onCl
         <p className="text-sm text-slate-500">Send this one-time EstateOS form to your client. They don't need an account, and what they submit is added to your CRM.</p>
         {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : <Field label="Secure link"><Input readOnly value={url || 'Generating…'} onFocus={(e) => e.currentTarget.select()} data-testid="request-link-input" /></Field>}
         <Field label="Client phone (optional)" hint="Used only to open the WhatsApp chat.">
-          <div className="flex gap-2"><Input ref={phoneRef} value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="numeric" placeholder="98765 43210" data-testid="request-phone-input" /><ContactPickButton focusRef={phoneRef} onPick={(c) => c.phone && setPhone(c.phone)} testid="request-contact-pick-btn" /></div>
+          <div className="flex gap-2 gap-fb"><Input ref={phoneRef} value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="numeric" placeholder="98765 43210" data-testid="request-phone-input" /><ContactPickButton focusRef={phoneRef} onPick={(c) => c.phone && setPhone(c.phone)} testid="request-contact-pick-btn" /></div>
         </Field>
         <div className="grid gap-2">
           <Button variant="success" onClick={whatsapp} disabled={!url} data-testid="request-whatsapp-btn"><MessageCircle className="h-4 w-4" />Share on WhatsApp</Button>

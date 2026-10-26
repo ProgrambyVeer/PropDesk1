@@ -249,7 +249,7 @@ export default function RequirementForm() {
           {id && sel('status', 'Status', ['ACTIVE', 'ON_HOLD', 'FULFILLED', 'CLOSED'])}
         </div>}
       </Card>
-      <div className="flex gap-3"><Button variant="secondary" className="flex-1" onClick={() => { if (draftKey && localStorage.getItem(draftKey) && !window.confirm('Discard draft?')) return; clearDraft(); nav(-1); }}>Cancel</Button><Button variant="secondary" className="flex-1" onClick={saveDraft}>Save Draft</Button><Button className="flex-1" onClick={save} loading={busy} data-testid="req-save-btn">{id ? 'Save Changes' : offering ? 'Save Requirement' : 'Create Requirement'}</Button></div>
+      <div className="flex gap-3 gap-fb-3"><Button variant="secondary" className="flex-1" onClick={() => { if (draftKey && localStorage.getItem(draftKey) && !window.confirm('Discard draft?')) return; clearDraft(); nav(-1); }}>Cancel</Button><Button variant="secondary" className="flex-1" onClick={saveDraft}>Save Draft</Button><Button className="flex-1" onClick={save} loading={busy} data-testid="req-save-btn">{id ? 'Save Changes' : offering ? 'Save Requirement' : 'Create Requirement'}</Button></div>
     </div>
   );
 }

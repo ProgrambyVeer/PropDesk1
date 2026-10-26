@@ -6,7 +6,7 @@ type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' 
 export function Button({ variant = 'primary', loading, size = 'md', className, children, disabled, ...p }: BtnProps) {
   return (
     <button {...p} disabled={disabled || loading} className={clsx(
-      'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-[background-color,transform,box-shadow] duration-150 active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40',
+      'inline-flex items-center justify-center gap-2 gap-fb-icon rounded-xl font-semibold transition-[background-color,transform,box-shadow] duration-150 active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40',
       size === 'sm' ? 'h-9 px-3 text-sm' : size === 'lg' ? 'h-12 px-6 text-base' : 'h-11 px-4 text-sm',
       variant === 'primary' && 'btn-primary bg-navy text-white hover:bg-navy-800 shadow-sm',
       variant === 'secondary' && 'bg-white text-navy border border-slate-200 hover:bg-slate-50',
@@ -61,7 +61,7 @@ export function Sheet({ open, onClose, title, children, footer, testid }: { open
           <button onClick={onClose} className="rounded-full p-2 text-slate-500 hover:bg-slate-100" data-testid="sheet-close-btn" aria-label="Close"><X className="h-5 w-5" /></button>
         </div>
         <div className="overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="flex gap-2 border-t border-slate-100 px-5 py-3 pb-safe">{footer}</div>}
+        {footer && <div className="flex gap-2 gap-fb border-t border-slate-100 px-5 py-3 pb-safe">{footer}</div>}
       </div>
     </div>
   );

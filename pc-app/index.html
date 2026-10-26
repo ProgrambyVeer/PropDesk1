@@ -12,6 +12,17 @@
           var d = localStorage.getItem('pc_theme') !== 'light';
           if (d) { document.documentElement.classList.add('dark'); document.documentElement.style.colorScheme = 'dark'; }
         } catch (e) {}
+        try {
+          var f = document.createElement('div');
+          f.style.cssText = 'display:flex;flex-direction:column;row-gap:1px;position:absolute;visibility:hidden';
+          f.appendChild(document.createElement('span')); f.appendChild(document.createElement('span'));
+          document.documentElement.appendChild(f);
+          var noGap;
+          f.firstChild.style.height = '1px'; f.lastChild.style.height = '1px';
+          noGap = f.offsetHeight < 3;
+          document.documentElement.removeChild(f);
+          if (noGap) document.documentElement.classList.add('no-flex-gap');
+        } catch (e) {}
       })();
     </script>
     <title>Estate OS Professional | Real Estate CRM</title>
