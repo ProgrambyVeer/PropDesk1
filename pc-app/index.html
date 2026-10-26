@@ -9,8 +9,7 @@
     <script>
       (function () {
         try {
-          var p = localStorage.getItem('pc_theme');
-          var d = p === 'dark' || (p !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var d = localStorage.getItem('pc_theme') !== 'light';
           if (d) { document.documentElement.classList.add('dark'); document.documentElement.style.colorScheme = 'dark'; }
         } catch (e) {}
       })();

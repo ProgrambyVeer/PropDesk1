@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { LifeBuoy, Mail, Monitor, Moon, Phone, Sun, Ticket } from 'lucide-react';
+import { LifeBuoy, Mail, Moon, Phone, Sun, Ticket } from 'lucide-react';
 import clsx from 'clsx';
 import { ApiError, get, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -9,9 +9,8 @@ import { getThemePref, setThemePref, type ThemePref } from '../lib/theme';
 import { Badge, Button, Card, Field, Input, Select, Sheet, Textarea } from './ui';
 
 const THEMES: { id: ThemePref; label: string; icon: typeof Sun }[] = [
-  { id: 'light', label: 'Light', icon: Sun },
   { id: 'dark', label: 'Dark', icon: Moon },
-  { id: 'system', label: 'System', icon: Monitor },
+  { id: 'light', label: 'Light', icon: Sun },
 ];
 
 export function AppearanceCard() {
@@ -20,7 +19,7 @@ export function AppearanceCard() {
   return (
     <Card className="space-y-3 p-5" data-testid="appearance-card">
       <div><h2 className="font-bold">Appearance</h2><p className="text-sm text-slate-500">Choose how Estate OS looks on this device.</p></div>
-      <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-2">
+      <div role="radiogroup" aria-label="Theme" className="grid grid-cols-2 gap-2">
         {THEMES.map((t) => (
           <button key={t.id} type="button" role="radio" aria-checked={pref === t.id} onClick={() => choose(t.id)} data-testid={`theme-${t.id}`}
             className={clsx('flex min-h-[64px] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-sm font-semibold transition-colors', pref === t.id ? 'btn-primary border-navy bg-navy text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>

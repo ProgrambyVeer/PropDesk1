@@ -1,15 +1,13 @@
-export type ThemePref = 'light' | 'dark' | 'system';
+export type ThemePref = 'light' | 'dark';
 const KEY = 'pc_theme';
 
+// Dark is the default; only an explicitly saved 'light' switches it off (legacy 'system' values fall back to dark).
 export const getThemePref = (): ThemePref => {
-  const v = localStorage.getItem(KEY);
-  return v === 'light' || v === 'dark' ? v : 'system';
+  try { return localStorage.getItem(KEY) === 'light' ? 'light' : 'dark'; } catch { return 'dark'; }
 };
 
-const mq = () => window.matchMedia('(prefers-color-scheme: dark)');
-
 export function applyTheme(pref: ThemePref = getThemePref()) {
-  const dark = pref === 'dark' || (pref === 'system' && mq().matches);
+  const dark = pref === 'dark';
   const root = document.documentElement;
   root.classList.toggle('dark', dark);
   root.style.colorScheme = dark ? 'dark' : 'light';
@@ -17,11 +15,10 @@ export function applyTheme(pref: ThemePref = getThemePref()) {
 }
 
 export function setThemePref(pref: ThemePref) {
-  if (pref === 'system') localStorage.removeItem(KEY); else localStorage.setItem(KEY, pref);
+  try { localStorage.setItem(KEY, pref); } catch { /* storage unavailable: applies for this session only */ }
   applyTheme(pref);
 }
 
 export function initTheme() {
   applyTheme();
-  mq().addEventListener('change', () => applyTheme());
 }
