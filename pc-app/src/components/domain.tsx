@@ -307,26 +307,17 @@ export function LocalitySelect({ value, onChange, testid, invalid, exclude = [],
 }
 
 export function LocalityMultiSelect({ values, onChange, testid, invalid }: { values: string[]; onChange: (v: string[]) => void; testid: string; invalid?: boolean }) {
-  const [selectors, setSelectors] = useState<number[]>([]);
-  const [queries, setQueries] = useState<Record<number, string>>({ 0: '' });
-  const [nextId, setNextId] = useState(1);
-  const choose = (id: number, value: string) => {
-    if (!value || values.some((item) => item.trim().toLowerCase() === value.trim().toLowerCase())) return;
-    onChange([...values, value]);
-    setSelectors((current) => current.filter((selector) => selector !== id));
-    setQueries((current) => { const next = { ...current }; delete next[id]; return next; });
+  // The search box stays visible so every pick is appended; remounting via `key` clears it after each selection.
+  const [resetKey, setResetKey] = useState(0);
+  const choose = (value: string) => {
+    if (!value) return;
+    if (!values.some((item) => item.trim().toLowerCase() === value.trim().toLowerCase())) onChange([...values, value]);
+    setResetKey((k) => k + 1);
   };
-  const addSelector = () => {
-    if (selectors.length) return;
-    setSelectors([nextId]);
-    setQueries((current) => ({ ...current, [nextId]: '' }));
-    setNextId((id) => id + 1);
-  };
-  const visibleSelectors = selectors.length ? selectors : values.length === 0 ? [0] : [];
   return <div className="space-y-2">
     {values.length > 0 && <div className="flex flex-wrap gap-2">{values.map((value) => <span key={value.toLowerCase()} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold" data-testid={`${testid}-selected-${value.toLowerCase().replace(/\W+/g, '-')}`}>{value}<button type="button" onClick={() => onChange(values.filter((item) => item !== value))} aria-label={`Remove ${value}`} className="text-slate-500 hover:text-red-600"><X className="h-3.5 w-3.5" /></button></span>)}</div>}
-    {visibleSelectors.map((id) => <LocalitySelect key={id} value={queries[id] || ''} onChange={(value) => { setQueries((current) => ({ ...current, [id]: value })); if (value) choose(id, value); }} testid={id === 0 ? testid : `${testid}-${id + 1}`} invalid={invalid && values.length === 0} exclude={values} clearAfterSelect />)}
-    {values.length > 0 && !selectors.length && <button type="button" onClick={addSelector} className="inline-flex items-center gap-1 text-sm font-semibold text-brand" data-testid={`${testid}-add-btn`}><Plus className="h-4 w-4" />Add another locality</button>}
+    <LocalitySelect key={resetKey} value="" onChange={choose} testid={testid} invalid={invalid && values.length === 0} exclude={values} clearAfterSelect />
+    {values.length > 0 && <p className="text-xs text-slate-500">Search above to add another locality.</p>}
   </div>;
 }
 
