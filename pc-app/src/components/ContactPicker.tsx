@@ -1,3 +1,4 @@
+import type { RefObject } from 'react';
 import { Contact } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui';
@@ -17,22 +18,18 @@ export function normalizeContactPhone(raw: string) {
 }
 
 // Uses the Contact Picker API where available (Chrome on Android). iOS browsers (all WebKit) do not provide it,
-// so the same button pastes a number the user copied from their Contacts app. Manual entry always remains.
+// so the same button guides the user to paste a number copied from Contacts. Manual entry always remains.
 // Nothing is requested until the button is tapped.
-export function ContactPickButton({ onPick, testid = 'contact-pick-btn' }: { onPick: (contact: { name: string; phone: string }) => void; testid?: string }) {
+export function ContactPickButton({ onPick, testid = 'contact-pick-btn', focusRef }: { onPick: (contact: { name: string; phone: string }) => void; testid?: string; focusRef?: RefObject<HTMLInputElement> }) {
   const native = contactPickerSupported();
-  const pasteFromClipboard = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      const phone = (text.match(/(?:\+?91[\s-]?|0)?[6-9](?:[\s-]?\d){9}/g) || []).map(normalizeContactPhone).find((p) => /^[6-9]\d{9}$/.test(p));
-      if (phone) onPick({ name: '', phone });
-      else toast.info('Copy a number from your Contacts app, then tap this button again. Or type it manually.');
-    } catch {
-      toast.info('Paste is unavailable. Copy a number from Contacts and paste it into the field, or type it manually.');
-    }
+  // iOS only allows pasting through its own Paste action, so we never read the clipboard ourselves:
+  // focus the phone field and explain the steps.
+  const showPasteInstructions = () => {
+    focusRef?.current?.focus();
+    toast.info('Open Contacts, copy the number, return here, tap the phone field and choose Paste. You can also type it.', { duration: 8000 });
   };
   const pick = async () => {
-    if (!native) return pasteFromClipboard();
+    if (!native) return showPasteInstructions();
     try {
       const contacts = (navigator as ContactPickerNavigator).contacts;
       if (!contacts?.select) return;
@@ -45,5 +42,5 @@ export function ContactPickButton({ onPick, testid = 'contact-pick-btn' }: { onP
       toast.info('Contact access was not granted. You can type the number manually.');
     }
   };
-  return <Button type="button" variant="secondary" onClick={pick} aria-label={native ? 'Pick from phone contacts' : 'Paste a copied phone number'} title={native ? 'Pick from phone contacts' : 'Paste a copied phone number'} data-testid={testid}><Contact className="h-4 w-4" /></Button>;
+  return <Button type="button" variant="secondary" onClick={pick} aria-label={native ? 'Pick from phone contacts' : 'How to paste a copied phone number'} title={native ? 'Pick from phone contacts' : 'How to paste a copied phone number'} data-testid={testid}><Contact className="h-4 w-4" /></Button>;
 }
