@@ -1,0 +1,16 @@
+{
+  "name": "EstateOS Professional",
+  "short_name": "EstateOS Pro",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/logo-mark.png",
+      "sizes": "533x533",
+      "type": "image/png"
+    }
+  ]
+}

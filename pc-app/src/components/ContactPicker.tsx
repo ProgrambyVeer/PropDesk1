@@ -2,7 +2,13 @@ import { Contact } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui';
 
-export const contactPickerSupported = () => typeof navigator !== 'undefined' && 'contacts' in navigator && typeof window !== 'undefined' && 'ContactsManager' in window;
+type DeviceContact = { name?: string[]; tel?: string[] };
+type ContactPickerNavigator = Navigator & { contacts?: { select?: (properties: string[], options?: { multiple?: boolean }) => Promise<DeviceContact[]> } };
+
+export const contactPickerSupported = () => typeof navigator !== 'undefined'
+  && typeof window !== 'undefined'
+  && window.isSecureContext
+  && typeof (navigator as ContactPickerNavigator).contacts?.select === 'function';
 
 export function normalizeContactPhone(raw: string) {
   const d = String(raw || '').replace(/\D/g, '');
@@ -16,7 +22,9 @@ export function ContactPickButton({ onPick, testid = 'contact-pick-btn' }: { onP
   if (!contactPickerSupported()) return null;
   const pick = async () => {
     try {
-      const [contact] = await (navigator as any).contacts.select(['name', 'tel'], { multiple: false });
+      const contacts = (navigator as ContactPickerNavigator).contacts;
+      if (!contacts?.select) return;
+      const [contact] = await contacts.select(['name', 'tel'], { multiple: false });
       if (!contact) return;
       const phone = (contact.tel || []).map(normalizeContactPhone).find((p: string) => /^[6-9]\d{9}$/.test(p)) || '';
       if (!phone) toast.info('That contact has no valid Indian mobile number. Please type it manually.');

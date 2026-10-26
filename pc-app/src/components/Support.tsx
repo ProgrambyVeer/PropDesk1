@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Camera, LifeBuoy, Mail, Monitor, Moon, Phone, Sun, Ticket, Users } from 'lucide-react';
+import { LifeBuoy, Mail, Monitor, Moon, Phone, Sun, Ticket } from 'lucide-react';
 import clsx from 'clsx';
 import { ApiError, get, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -176,67 +176,6 @@ export function HelpSupportCard() {
           </div>
         )}
       </Sheet>
-    </Card>
-  );
-}
-
-type PermState = 'granted' | 'denied' | 'prompt' | 'unsupported' | 'device';
-const PERM_LABEL: Record<PermState, [string, string]> = { granted: ['Enabled', 'green'], denied: ['Blocked', 'red'], prompt: ['Not enabled', 'amber'], unsupported: ['Not supported', 'slate'], device: ['Device managed', 'slate'] };
-
-// Reflects what the browser reports; nothing is marked enabled unless the browser says so.
-export function AppPermissions() {
-  const [camera, setCamera] = useState<PermState>('prompt');
-  const [note, setNote] = useState('');
-  const hasCamera = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
-  const contacts: PermState = typeof navigator !== 'undefined' && 'contacts' in navigator && 'ContactsManager' in window ? 'prompt' : 'unsupported';
-
-  useEffect(() => {
-    if (!hasCamera) { setCamera('unsupported'); return; }
-    let status: PermissionStatus | undefined;
-    const sync = () => status && setCamera(status.state as PermState);
-    navigator.permissions?.query({ name: 'camera' as PermissionName }).then((s) => { status = s; sync(); s.addEventListener('change', sync); }).catch(() => {});
-    return () => status?.removeEventListener('change', sync);
-  }, [hasCamera]);
-
-  const enableCamera = async () => {
-    setNote('');
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: true });
-      s.getTracks().forEach((tr) => tr.stop());
-      setCamera('granted');
-    } catch (e) {
-      const denied = (e as DOMException).name === 'NotAllowedError';
-      if (denied) setCamera('denied');
-      setNote(denied ? 'Camera access is blocked. Allow it from your browser or device site settings, then return here.' : 'No usable camera was found on this device.');
-    }
-  };
-  const pickContact = async () => {
-    setNote('');
-    try { await (navigator as any).contacts.select(['name', 'tel']); } catch { setNote('Contact access was not granted.'); }
-  };
-
-  const rows: { id: string; icon: typeof Camera; name: string; desc: string; state: PermState; action?: { label: string; run: () => void }; hint?: string }[] = [
-    { id: 'camera', icon: Camera, name: 'Camera', desc: 'Capture property photos and documents.', state: camera, action: camera === 'prompt' ? { label: 'Enable', run: enableCamera } : undefined, hint: camera === 'denied' ? 'Blocked. Change it in your browser or device site settings.' : camera === 'unsupported' ? 'Not supported in this browser.' : undefined },
-    { id: 'calls', icon: Phone, name: 'Calls', desc: 'Call clients directly from Estate OS.', state: 'device', hint: 'Calls open your phone dialer. Browsers have no call permission; manage this in your device settings.' },
-    { id: 'contacts', icon: Users, name: 'Contacts', desc: 'Pick clients from your phone contacts.', state: contacts, action: contacts === 'prompt' ? { label: 'Enable', run: pickContact } : undefined, hint: contacts === 'unsupported' ? 'Not supported in this browser. Available in Chrome on Android.' : 'Your device asks each time you choose a contact.' },
-  ];
-  return (
-    <Card className="space-y-3 p-5" data-testid="app-permissions">
-      <div><h2 className="font-bold">App Permissions</h2><p className="text-sm text-slate-500">Control what Estate OS can use on this device.</p></div>
-      <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
-        {rows.map((r) => (
-          <li key={r.id} className="flex items-start gap-3 px-3 py-3" data-testid={`perm-${r.id}`}>
-            <r.icon className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" strokeWidth={1.75} />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold">{r.name}</p><Badge tone={PERM_LABEL[r.state][1]}>{PERM_LABEL[r.state][0]}</Badge></div>
-              <p className="text-xs text-slate-500">{r.desc}</p>
-              {r.hint && <p className="mt-1 text-xs text-slate-500">{r.hint}</p>}
-            </div>
-            {r.action && <Button variant="secondary" onClick={r.action.run} data-testid={`perm-${r.id}-enable`}>{r.action.label}</Button>}
-          </li>
-        ))}
-      </ul>
-      {note && <p className="text-xs text-red-600" role="status">{note}</p>}
     </Card>
   );
 }

@@ -5,9 +5,9 @@ import { ApiError, fileUrl, get, patch, post, upload } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { initials } from '../lib/format';
 import { Badge, Button, Card, Field, Input, Sheet, Textarea } from '../components/ui';
-import { AppearanceCard, AppPermissions } from '../components/Support';
+import { AppearanceCard } from '../components/Support';
 
-export default function Profile({ section = 'profile' }: { section?: 'profile' | 'company' | 'settings' }) {
+export default function Profile({ section = 'profile' }: { section?: 'profile' | 'company' }) {
   const { user, setUser } = useAuth();
   const [f, setF] = useState<any>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -49,8 +49,8 @@ export default function Profile({ section = 'profile' }: { section?: 'profile' |
   const inp = (k: string, label: string, ph = '') => <Field label={label} error={errors[k]}><Input value={f[k] || ''} disabled={!editable} onChange={(e) => setF({ ...f, [k]: e.target.value })} placeholder={ph} data-testid={`profile-${k}-input`} /></Field>;
   return (
     <div className="mx-auto max-w-2xl space-y-6" data-testid={`${section}-page`}>
-      <div className="flex items-center justify-between gap-3"><h1 className="text-3xl font-extrabold tracking-tight">{section === 'company' ? 'Company Details' : section === 'settings' ? 'Settings' : 'My Profile'}</h1>{section === 'profile' && !editing && <Button variant="secondary" onClick={() => setEditing(true)} data-testid="profile-edit-btn">Edit Profile</Button>}</div>
-      {section === 'settings' ? <AppPermissions /> : <Card className="space-y-4 p-5">
+      <div className="flex items-center justify-between gap-3"><h1 className="text-3xl font-extrabold tracking-tight">{section === 'company' ? 'Company Details' : 'My Profile'}</h1>{section === 'profile' && !editing && <Button variant="secondary" onClick={() => setEditing(true)} data-testid="profile-edit-btn">Edit Profile</Button>}</div>
+      <Card className="space-y-4 p-5">
         {section === 'profile' && <>
           <div className="flex items-center gap-4"><button onClick={() => editing && file.current?.click()} disabled={!editing} className="relative h-20 w-20 overflow-hidden rounded-2xl bg-navy text-xl font-bold text-white disabled:cursor-default" data-testid="profile-photo-btn">{user.profile?.photoUrl ? <img src={fileUrl(user.profile.photoUrl)} alt="" className="h-full w-full object-cover" /> : initials(user.name || user.email || user.phone || 'PC')}{editing && <span className="absolute bottom-1 right-1 rounded-full bg-white p-1 text-navy"><Camera className="h-3 w-3" /></span>}</button>
             <input ref={file} type="file" accept="image/*" hidden onChange={(e) => photo(e.target.files)} /><div><p className="font-bold">{user.name || 'Add your name'}</p><p className="text-sm text-slate-500">{user.phone ? `+91 ${user.phone}` : user.email}</p></div></div>
@@ -73,7 +73,7 @@ export default function Profile({ section = 'profile' }: { section?: 'profile' |
         <Field label="Office Address"><Textarea disabled={!editable} value={f.officeAddress || ''} onChange={(e) => setF({ ...f, officeAddress: e.target.value })} data-testid="profile-officeAddress-input" /></Field>
         {section === 'company' && <>{inp('companyWebsite', 'Website')}{inp('gstNumber', 'GST Number')}</>}
         {section === 'profile' ? editing && <div className="flex gap-2"><Button variant="secondary" onClick={cancel} disabled={busy} data-testid="profile-cancel-btn">Cancel</Button><Button onClick={save} loading={busy} data-testid="profile-save-btn">Save</Button></div> : <Button onClick={save} loading={busy} data-testid="profile-save-btn">Save</Button>}
-      </Card>}
+      </Card>
       {section === 'profile' && !editing && <AppearanceCard />}
       <Sheet open={reqOpen} onClose={() => setReqOpen(false)} title="Request Email Change" testid="email-request-sheet" footer={<Button onClick={sendReq} loading={reqBusy} data-testid="email-request-submit">Submit Request</Button>}>
         <div className="space-y-4">

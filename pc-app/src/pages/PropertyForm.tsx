@@ -95,6 +95,7 @@ export default function PropertyForm() {
   const addFiles = async (files: FileList | null) => {
     if (!files) return;
     const ok = Array.from(files).filter((x) => { if (!/^image\/(jpeg|png|webp|heic|heif)$/.test(x.type)) { toast.error(`${x.name}: unsupported format`); return false; } if (x.size > 8 * 1024 * 1024) { toast.error(`${x.name} exceeds 8 MB`); return false; } return true; });
+    if (!ok.length) return;
     if (id) { setProgress(0); try { const c = await upload(`/properties/${id}/photos`, 'photos', ok, setProgress); setPhotos((p) => [...p, ...c]); toast.success('Photos uploaded'); } catch (e) { toast.error((e as Error).message); } setProgress(null); }
     else setLocal((l) => [...l, ...ok.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
   };

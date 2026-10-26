@@ -22,7 +22,10 @@ export async function request<T = any>(path: string, opts: Opts = {}): Promise<{
   } catch {
     throw new ApiError(0, 'NETWORK', 'Network error. Check your connection.');
   }
-  const json = await res.json().catch(() => ({}));
+  let json: any;
+  try { json = await res.json(); }
+  catch { throw new ApiError(res.status, 'INVALID_RESPONSE', 'The server returned an invalid response.'); }
+  if (!json || typeof json !== 'object') throw new ApiError(res.status, 'INVALID_RESPONSE', 'The server returned an invalid response.');
   if (!res.ok || json.success === false) {
     const e = json.error || {};
     const fe: Record<string, string> = {};
@@ -30,6 +33,9 @@ export async function request<T = any>(path: string, opts: Opts = {}): Promise<{
     if (res.status === 401 && token.get()) { token.clear(); window.dispatchEvent(new Event('auth:expired')); }
     if (res.status === 403 && String(e.code).startsWith('ACCOUNT_')) { token.clear(); window.dispatchEvent(new CustomEvent('auth:blocked', { detail: e.message })); }
     throw new ApiError(res.status, e.code || 'ERROR', e.message || 'Something went wrong', fe);
+  }
+  if (json.success !== true || !Object.prototype.hasOwnProperty.call(json, 'data')) {
+    throw new ApiError(res.status, 'INVALID_RESPONSE', 'The server returned an invalid response.');
   }
   return json;
 }
@@ -48,10 +54,19 @@ export function upload(path: string, field: string, files: File[], onProgress?: 
     if (token.get()) xhr.setRequestHeader('Authorization', `Bearer ${token.get()}`);
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(Math.round((e.loaded / e.total) * 100));
     xhr.onload = () => {
-      const json = JSON.parse(xhr.responseText || '{}');
-      xhr.status < 300 ? resolve(json.data) : reject(new ApiError(xhr.status, json.error?.code, json.error?.message || 'Upload failed'));
+      let json: any;
+      try { json = JSON.parse(xhr.responseText); }
+      catch { reject(new ApiError(xhr.status, 'INVALID_RESPONSE', 'The server returned an invalid upload response.')); return; }
+      if (!json || typeof json !== 'object') {
+        reject(new ApiError(xhr.status, 'INVALID_RESPONSE', 'The server returned an invalid upload response.'));
+      } else if (xhr.status >= 300 || json.success === false) {
+        reject(new ApiError(xhr.status, json.error?.code || 'UPLOAD_ERROR', json.error?.message || 'Upload failed'));
+      } else if (json.success !== true || !Object.prototype.hasOwnProperty.call(json, 'data')) {
+        reject(new ApiError(xhr.status, 'INVALID_RESPONSE', 'The server returned an invalid upload response.'));
+      } else resolve(json.data);
     };
     xhr.onerror = () => reject(new ApiError(0, 'NETWORK', 'Upload failed. Check your connection.'));
+    xhr.onabort = () => reject(new ApiError(0, 'ABORTED', 'Upload was cancelled. Try again.'));
     xhr.send(fd);
   });
 }

@@ -58,7 +58,6 @@ export default function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/company" element={<Profile section="company" />} />
-        <Route path="/settings" element={<Profile section="settings" />} />
         <Route path="/help" element={<Help />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

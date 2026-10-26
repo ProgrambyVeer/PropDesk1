@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { toast } from 'sonner';
-import { Bell, Building2, CalendarClock, Gem, HelpCircle, History, Home, LogOut, Search, Settings, Trash2, User, Users, BarChart3, Landmark } from 'lucide-react';
+import { Bell, Building2, CalendarClock, Gem, HelpCircle, History, Home, LogOut, Search, Trash2, User, Users, BarChart3, Landmark } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { fileUrl, request } from '../lib/api';
 import { initials } from '../lib/format';
@@ -16,7 +16,7 @@ const NAV = [
   { to: '/deals', label: 'Deals', icon: DealsIcon, id: 'deals' },
 ];
 const MENU = [
-  { to: '/profile', label: 'My Profile', icon: User }, { to: '/company', label: 'Company Details', icon: Landmark }, { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/profile', label: 'My Profile', icon: User }, { to: '/company', label: 'Company Details', icon: Landmark },
   { to: '/notifications', label: 'Notifications', icon: Bell }, { to: '/analytics', label: 'Analytics', icon: BarChart3 }, { to: '/bin', label: 'Bin', icon: Trash2 },
   { to: '/activity', label: 'Activity Logs', icon: History }, { to: '/help', label: 'Help', icon: HelpCircle },
 ];
@@ -67,7 +67,7 @@ export default function Shell() {
           <NavLink to="/analytics" className={({ isActive }) => clsx('flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold', isActive ? 'bg-navy text-white' : 'text-slate-600 hover:bg-slate-100')}><BarChart3 className="h-[18px] w-[18px]" />Analytics</NavLink>
         </nav>
       </aside>
-      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 pt-safe backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <div className="lg:hidden"><Logo shifted className="w-36 max-[360px]:w-28" /></div>
           <div className="hidden text-sm font-medium text-slate-500 lg:block">{user.profile?.companyName}</div>
