@@ -19,16 +19,23 @@ export function normalizeContactPhone(raw: string) {
 // Uses the Contact Picker API where available (Chrome on Android). iOS browsers (all WebKit) do not provide it,
 // so the same button pastes a number the user copied from their Contacts app. Manual entry always remains.
 // Nothing is requested until the button is tapped.
-export function ContactPickButton({ onPick, testid = 'contact-pick-btn' }: { onPick: (contact: { name: string; phone: string }) => void; testid?: string }) {
+export function ContactPickButton({ onPick, onPasteFallback, testid = 'contact-pick-btn' }: { onPick: (contact: { name: string; phone: string }) => void; onPasteFallback?: () => void; testid?: string }) {
   const native = contactPickerSupported();
   const pasteFromClipboard = async () => {
+    const isIOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+    if (isIOS) {
+      onPasteFallback?.();
+      toast.info('Open Contacts and copy the phone number. Return here, tap the phone field, then choose Paste.');
+      return;
+    }
     try {
       const text = await navigator.clipboard.readText();
       const phone = (text.match(/(?:\+?91[\s-]?|0)?[6-9](?:[\s-]?\d){9}/g) || []).map(normalizeContactPhone).find((p) => /^[6-9]\d{9}$/.test(p));
       if (phone) onPick({ name: '', phone });
       else toast.info('Copy a number from your Contacts app, then tap this button again. Or type it manually.');
     } catch {
-      toast.info('Paste is unavailable. Copy a number from Contacts and paste it into the field, or type it manually.');
+      onPasteFallback?.();
+      toast.info('Open Contacts and copy the phone number. Return here, tap the phone field, then choose Paste. You can also type it manually.');
     }
   };
   const pick = async () => {
