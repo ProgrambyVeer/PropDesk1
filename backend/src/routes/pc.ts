@@ -16,6 +16,7 @@ import { ALLOWED_IMAGE_TYPES, isValidImage, storage } from '../providers/storage
 import * as R from '../services/records';
 import { changeStage, createDeal, createLink, linkSchema, previewBuyClose, previewDeal, PROBABILITY, STAGES, updateDeal } from '../services/deals';
 import { allMatchesForOwner, interestedClientCounts, matchesForRequirement } from '../services/matching';
+import { potentialPipelineTotals, stageDealValue } from '../services/dealTotals';
 import { moveToBin, purgeFromBin, restoreFromBin } from '../services/bin';
 import { clientAnalytics, computeAnalytics, propertyAnalytics } from '../services/analytics';
 import { globalSearch } from '../services/search';
@@ -492,7 +493,7 @@ pc.get('/dashboard', async (req, res) => {
     prisma.client.count({ where: { ownerId: uid, deletedAt: null } }),
     prisma.followUp.findMany({ where: { ownerId: uid, deletedAt: null, scheduledAt: { gte: sod, lt: eod } }, orderBy: { scheduledAt: 'asc' }, include: { client: { select: { id: true, name: true, phone: true } }, requirement: { select: { code: true, type: true } } } }),
     prisma.followUp.findMany({ where: { ownerId: uid, deletedAt: null, type: 'SITE_VISIT', status: { in: ['SCHEDULED', 'RESCHEDULED'] }, scheduledAt: { gte: new Date() } }, orderBy: { scheduledAt: 'asc' }, take: 5, include: { client: { select: { name: true } }, property: { select: { code: true, location: true } } } }),
-    prisma.deal.findMany({ where: { ownerId: uid, deletedAt: null, stage: { notIn: ['CLOSED', 'LOST'] } }, select: { stage: true, dealValue: true, expectedCommission: true } }),
+    prisma.deal.findMany({ where: { ownerId: uid, deletedAt: null, stage: { notIn: ['CLOSED', 'LOST'] } },     select: { propertyId: true, stage: true, dealValue: true, expectedCommission: true } }),
     prisma.property.findMany({ where: { ownerId: uid, deletedAt: null }, orderBy: { createdAt: 'desc' }, take: 6, include: listInclude(uid) }),
     prisma.activityLog.findMany({ where: { userId: uid }, orderBy: { createdAt: 'desc' }, take: 10 }),
     prisma.client.findMany({ where: { ownerId: uid, deletedAt: null, OR: [{ isHot: true }, { links: { some: { interestLevel: 'HIGH', status: 'ACTIVE' } } }] }, take: 6, include: { _count: { select: { requirements: { where: { deletedAt: null } } } } } }),
@@ -501,12 +502,12 @@ pc.get('/dashboard', async (req, res) => {
   const linked = new Set((await prisma.propertyClient.findMany({ where: { ownerId: uid, status: 'ACTIVE' }, select: { requirementId: true, propertyId: true } })).map((l) => `${l.requirementId}:${l.propertyId}`));
   const activeAssociations = recentProperties.flatMap((property) => property.links.map((link) => ({ propertyId: property.id, clientId: link.clientId, type: link.requirement.type })));
   const interestedByProperty = interestedClientCounts(activeAssociations);
-  const sum = (xs: (number | null)[]) => xs.reduce<number>((a, b) => a + (b || 0), 0);
+  const potential = potentialPipelineTotals(openDeals);
   ok(res, {
-    stats: { properties, clients, followUpsToday: todays.length, potentialDealValue: sum(openDeals.map((d) => d.dealValue)), potentialCommission: sum(openDeals.map((d) => d.expectedCommission)) },
+    stats: { properties, clients, followUpsToday: todays.length, potentialDealValue: potential.potentialDealValue, potentialCommission: potential.potentialCommission },
     todaysFollowUps: todays, upcomingSiteVisits: siteVisits, hotClients,
     propertyMatches: matches.filter((m) => m.requirement.type.endsWith('_LOOKING') && !linked.has(`${m.requirement.id}:${m.property.id}`)).slice(0, 6).map((m) => ({ score: m.score, requirement: { id: m.requirement.id, code: m.requirement.code, type: m.requirement.type, client: m.requirement.client }, property: { id: m.property.id, code: m.property.code, location: m.property.location, subtype: m.property.subtype, photo: m.property.photos[0]?.url ?? null } })),
-    pipeline: STAGES.filter((s) => s !== 'CLOSED' && s !== 'LOST').map((s) => ({ stage: s, count: openDeals.filter((d) => d.stage === s).length, value: sum(openDeals.filter((d) => d.stage === s).map((d) => d.dealValue)) })),
+    pipeline: STAGES.filter((s) => s !== 'CLOSED' && s !== 'LOST').map((s) => ({ stage: s, count: openDeals.filter((d) => d.stage === s).length, value: stageDealValue(openDeals, s) })),
     recentProperties: recentProperties.map((i) => ({ ...i, isShared: i.shares.length > 0, dealStatus: i.deals[0]?.stage ?? null, interestedClients: interestedByProperty.get(i.id) ?? 0 })),
     recentActivity,
   });

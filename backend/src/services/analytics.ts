@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { allMatchesForOwner, isLooking, txPrice } from './matching';
 import { PROBABILITY, STAGES } from './deals';
+import { potentialPipelineTotals } from './dealTotals';
 
 export interface AnalyticsFilter { ownerId?: string; from?: Date; to?: Date; location?: string; category?: string; kind?: string }
 
@@ -28,7 +29,7 @@ export async function computeAnalytics(f: AnalyticsFilter) {
     prisma.property.findMany({ where: propWhere, select: { id: true, category: true, subtype: true, location: true, status: true, createdAt: true, transactions: { select: { kind: true } } } }),
     prisma.client.findMany({ where: { ...own, ...created, deletedAt: null }, select: { id: true, createdAt: true, location: true } }),
     prisma.requirement.findMany({ where: { ...own, ...created, deletedAt: null, client: { deletedAt: null }, ...(f.category ? { category: f.category as any } : {}) }, select: { type: true, status: true, category: true, createdAt: true } }),
-    prisma.deal.findMany({ where: { ...own, ...created, deletedAt: null, ...(f.category || f.location || f.kind ? { property: propWhere } : {}) }, select: { stage: true, dealValue: true, expectedCommission: true, finalCommission: true, createdAt: true, closingDate: true } }),
+    prisma.deal.findMany({ where: { ...own, ...created, deletedAt: null, ...(f.category || f.location || f.kind ? { property: propWhere } : {}) }, select: { propertyId: true, stage: true, dealValue: true, expectedCommission: true, finalCommission: true, createdAt: true, closingDate: true } }),
     prisma.followUp.findMany({ where: { ...own, ...(f.from || f.to ? { scheduledAt: { gte: f.from, lte: f.to } } : {}), deletedAt: null }, select: { type: true, status: true, scheduledAt: true } }),
   ]);
   const months = lastMonths(6, f.to);
@@ -54,11 +55,11 @@ export async function computeAnalytics(f: AnalyticsFilter) {
       closedDeals: closed.length,
       dealValue: sum(deals.filter((d) => d.stage !== 'LOST').map((d) => d.dealValue)),
       closedDealValue: sum(closed.map((d) => d.dealValue)),
-      expectedCommission: sum(open.map((d) => d.expectedCommission)),
+      expectedCommission: potentialPipelineTotals(open).potentialCommission,
       earnedCommission: sum(closed.map((d) => d.finalCommission)),
     },
     monthlyDeals: months.map((m) => ({ month: m, created: deals.filter((d) => monthKey(d.createdAt) === m).length, closed: closed.filter((d) => d.closingDate && monthKey(d.closingDate) === m).length })),
-    monthlyCommission: months.map((m) => ({ month: m, earned: sum(closed.filter((d) => d.closingDate && monthKey(d.closingDate) === m).map((d) => d.finalCommission)), expected: sum(open.filter((d) => monthKey(d.createdAt) === m).map((d) => d.expectedCommission)) })),
+    monthlyCommission: months.map((m) => ({ month: m, earned: sum(closed.filter((d) => d.closingDate && monthKey(d.closingDate) === m).map((d) => d.finalCommission)), expected: potentialPipelineTotals(open.filter((d) => monthKey(d.createdAt) === m)).potentialCommission })),
     propertyDistribution: countBy(properties, (p) => p.category),
     transactionDistribution: countBy(properties.flatMap((p) => p.transactions), (t) => t.kind),
     clientDistribution: countBy(requirements, (r) => r.type),
@@ -116,7 +117,7 @@ export async function propertyAnalytics(propertyId: string) {
     dealStage: best?.stage ?? null,
     dealProbability: best ? PROBABILITY[best.stage] : 0,
     dealValue: best?.dealValue ?? null,
-    expectedCommission: sum(deals.filter((d) => d.stage !== 'LOST' && d.stage !== 'CLOSED').map((d) => d.expectedCommission)),
+    expectedCommission: potentialPipelineTotals(deals.map((d) => ({ ...d, propertyId }))).potentialCommission,
     finalCommission: sum(deals.filter((d) => d.stage === 'CLOSED').map((d) => d.finalCommission)),
     askingPrice: p.transactions.map((t) => ({ kind: t.kind, price: txPrice(t) })),
     timeline,
